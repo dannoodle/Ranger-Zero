@@ -1,4 +1,4 @@
-// Route check: builds many worlds and reports any outpost or survey site a ranger can't walk to.
+// Route check: builds many worlds and reports any outpost, survey site or board objective a ranger can't walk to.
 //   node tools/routes.js --seeds 500 [--start 1] [--set map.villages=4]
 // Exits with an error if any world fails.
 
@@ -22,9 +22,11 @@ function nearestSafeLeg(world, site) {
 let failures = 0;
 const outpostLegs = [];
 const siteLegs = [];
+const boardLegs = {};
 
 for (let seed = options.start; seed < options.start + options.seeds; seed++) {
-  const world = RZ.generateMap(CFG, seed);
+  const sim = RZ.createSim(CFG, seed);
+  const world = sim.world;
   const { w, h, moveCost } = world;
   const home = world.home.x + world.home.y * w;
   const problems = world.problems.slice();
@@ -39,6 +41,14 @@ for (let seed = options.start; seed < options.start + options.seeds; seed++) {
     else if (place.id[0] === 'o') outpostLegs.push(path.cost);
   }
   for (const site of world.sites) siteLegs.push(nearestSafeLeg(world, site));
+  for (const type of ['survey', 'clear', 'retrieve', 'stock']) {
+    if (!sim.board.objectives.some(o => o.type === type)) problems.push(`no ${type} objective on the board`);
+  }
+  for (const o of sim.board.objectives) {
+    const path = RZ.findPath(w, h, moveCost, home, o.x + o.y * w);
+    if (!path) problems.push(`no route to ${o.title}`);
+    else if (o.type !== 'stock') (boardLegs[o.type] = boardLegs[o.type] || []).push(nearestSafeLeg(world, o));
+  }
 
   if (problems.length) {
     failures++;
@@ -55,4 +65,5 @@ function spread(values) {
 console.log(`${options.seeds} worlds checked, ${failures} with problems`);
 if (outpostLegs.length) console.log(`home to outpost cost: ${spread(outpostLegs)}`);
 if (siteLegs.length) console.log(`nearest safe house to site cost: ${spread(siteLegs)}`);
+for (const type of Object.keys(boardLegs)) console.log(`nearest safe house to ${type} objective cost: ${spread(boardLegs[type])}`);
 process.exitCode = failures ? 1 : 0;

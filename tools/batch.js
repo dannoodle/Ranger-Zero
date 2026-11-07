@@ -40,6 +40,8 @@ let stuck = 0;
 let kills = 0;
 let olds = 0;
 let chapters = 0;
+let rewards = 0;
+let boardsDone = 0;
 const started = process.hrtime.bigint();
 
 for (let seed = options.start; seed < options.start + options.seeds; seed++) {
@@ -65,6 +67,8 @@ for (let seed = options.start; seed < options.start + options.seeds; seed++) {
   kills += state.stats.scavsKilled;
   olds += state.stats.oldsBeaten;
   chapters += state.chapters.length;
+  rewards += state.stats.rewards || 0;
+  boardsDone += state.chapters.filter(summary => summary.complete).length;
   if (state.stats.missions.length === 0) stuck++;
 }
 
@@ -80,6 +84,11 @@ console.log('\nMissions');
 console.log(`  completed           ${missions.length}`);
 console.log(`  sites reached       ${reached}`);
 console.log(`  seeds with none     ${stuck}`);
+const byType = {};
+for (const m of missions) (byType[m.type || 'survey'] = byType[m.type || 'survey'] || []).push(m);
+console.log('  by kind             ' + Object.keys(byType).map(type => `${type} ${byType[type].length} (median ${median(byType[type].map(m => m.attempts))} attempts)`).join(', '));
+console.log(`  rewards paid        ${rewards}`);
+console.log(`  boards finished     ${boardsDone} of ${chapters} lands`);
 console.log(`  attempts: median ${median(missions.map(m => m.attempts))}, mean ${mean(missions.map(m => m.attempts)).toFixed(1)}`);
 console.log(`  rangers:  median ${median(missions.map(m => m.rangers))}, mean ${mean(missions.map(m => m.rangers)).toFixed(1)}`);
 console.log(`  tides:    median ${median(missions.map(m => m.tides))}, mean ${mean(missions.map(m => m.tides)).toFixed(1)}`);

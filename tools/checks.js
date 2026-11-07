@@ -58,7 +58,7 @@ function chooser(seed) {
 
 function randomCalls(seed, ticks, count) {
   const pick = chooser(seed + 77);
-  const types = ['turnback', 'pushon', 'warn', 'send', 'crate', 'how', 'plan', 'know', 'zero', 'recruit'];
+  const types = ['turnback', 'pushon', 'warn', 'send', 'crate', 'how', 'plan', 'know', 'zero', 'recruit', 'hold', 'board'];
   const script = [];
   for (let n = 0; n < count; n++) {
     const type = types[pick(types.length)];
@@ -68,6 +68,7 @@ function randomCalls(seed, ticks, count) {
       call.y = pick(CFG.map.height);
     }
     if (type === 'recruit') call.pick = pick(3);
+    if (type === 'hold') call.on = pick(2) === 1;
     script.push(call);
   }
   return script.sort((a, b) => a.tick - b.tick);
@@ -85,6 +86,9 @@ section('Rules that are checked by reading the code', () => {
     if (/document\.|window\.|requestAnimationFrame/.test(code)) check(file + ' has no DOM', false);
   }
   check('sim files never touch the DOM', true);
+  // A plan's reasoning is written for the view. If the sim ever read it, explaining would change what happens.
+  const readers = simFiles.filter(file => file !== 'src/sim/planner.js' && /\.(trace|brief)\b/.test(bare(read(file))));
+  check('only the planner touches a plan\'s trace and brief', readers.length === 0, readers.join(', '));
   const look = simFiles.filter(file => /\.look\b/.test(read(file)));
   check('nothing in the sim reads CFG.look', look.length === 0, look.join(', '));
   const html = read('index.html');
@@ -96,7 +100,7 @@ section('Rules that are checked by reading the code', () => {
 });
 
 section('Every line of dialogue is reachable and complete', () => {
-  const code = ['src/sim/brain.js', 'src/sim/planner.js', 'src/sim/sim.js', 'src/sim/enemies.js', 'src/sim/oldselves.js', 'src/sim/anomaly.js']
+  const code = ['src/sim/brain.js', 'src/sim/planner.js', 'src/sim/sim.js', 'src/sim/enemies.js', 'src/sim/oldselves.js', 'src/sim/anomaly.js', 'src/sim/objectives.js']
     .map(read).join('\n');
   const used = new Set([...code.matchAll(/(?:say|speak)\([^'\n]*'(\w+)'/g)].map(match => match[1]).filter(key => !key.endsWith('_')));
   ['setout_survey', 'setout_again', 'meet_trust', 'meet_doubt', 'first', 'first_line', 'muse', 'muse_tide', 'walk', 'walk_new', 'walk_forest',
@@ -249,8 +253,79 @@ section('A greater tide', () => {
   check('the journal\'s map is wiped', seen < 800, seen + ' cells known');
   check('lessons survive', before && JSON.stringify(sim.book.lessons) === before.lessons);
   check('only the home stash has anything in it', Object.keys(sim.stashes).every(id => id === 'home' || !RZ.holdsGear(sim.stashes[id])));
-  check('the new land has every site', sim.book.sites.length === CFG.map.surveySites);
+  check('the new land has a full board', sim.book.objectives.length === sim.board.objectives.length &&
+    ['survey', 'clear', 'retrieve', 'stock'].every(type => sim.board.objectives.some(o => o.type === type)));
+  check('the new board is all open', sim.book.objectives.every(o => !o.done));
   check('no problems in the new land', sim.world.problems.length === 0);
+});
+
+section('The board', () => {
+  const types = ['survey', 'clear', 'retrieve', 'stock'];
+  let full = 0;
+  let unreachable = [];
+  for (let seed = 1; seed <= options.seeds * 3; seed++) {
+    const sim = RZ.createSim(CFG, seed);
+    const { w, h, moveCost } = sim.world;
+    const home = sim.world.home.x + sim.world.home.y * w;
+    if (types.every(type => sim.board.objectives.some(o => o.type === type))) full++;
+    for (const o of sim.board.objectives) {
+      if (!RZ.findPath(w, h, moveCost, home, o.x + o.y * w)) unreachable.push('seed ' + seed + ' ' + o.title);
+    }
+  }
+  check('every board has all four kinds (' + full + ' of ' + options.seeds * 3 + ')', full === options.seeds * 3);
+  check('every objective can be walked to', unreachable.length === 0, unreachable.join(', '));
+
+  // Rewards and relics, over a long run.
+  const relics = sim => sim.items.filter(i => i.kind === 'relic').length + (sim.ranger.alive ? sim.ranger.pack.relic : 0) +
+    sim.bodies.reduce((n, b) => n + (b.pack.relic || 0), 0) + sim.olds.reduce((n, o) => n + (o.pack.relic || 0), 0) +
+    Object.values(sim.stashes).reduce((n, s) => n + (s.relic || 0), 0);
+  let lost = 0;
+  let extra = 0;
+  let rewards = 0;
+  let finished = 0;
+  for (let seed = 1; seed <= options.seeds; seed++) {
+    const sim = RZ.createSim(CFG, seed);
+    let phase = sim.tide.phase;
+    for (let t = 0; t < options.ticks * 2; t++) {
+      RZ.stepSim(sim);
+      if (sim.tide.phase === 'calm' && phase !== 'calm') {
+        const open = sim.board.objectives.filter(o => o.type === 'retrieve' && !o.done).length;
+        const count = relics(sim);
+        if (count < open) lost++;
+        if (count > open) extra++;
+      }
+      phase = sim.tide.phase;
+    }
+    rewards += sim.stats.rewards || 0;
+    finished += sim.stats.missions.length;
+  }
+  check('a relic is never lost for good', lost === 0, lost + ' tides without one');
+  check('never more relics than the board asks for', extra === 0, extra + ' tides with too many');
+  check('every finished objective paid a reward (' + rewards + ' for ' + finished + ')', rewards >= finished && finished > 0);
+
+  // Zero's switches.
+  const sim = RZ.createSim(CFG, 4);
+  const first = sim.board.objectives.map(o => o.id).join();
+  RZ.queueCall(sim, { type: 'board' });
+  RZ.stepSim(sim);
+  check('a new board replaces the old one', sim.board.no === 2 && sim.board.objectives.map(o => o.id).join() !== first);
+  check('the journal has the new board', sim.book.objectives.every((o, n) => o.id === sim.board.objectives[n].id));
+  check('only the new relic is out there', relics(sim) === sim.board.objectives.filter(o => o.type === 'retrieve').length);
+  const replay = run(4, 200, sim.callLog.map(call => Object.assign({}, call)));
+  const again = run(4, 200, sim.callLog.map(call => Object.assign({}, call)));
+  check('a new board replays exactly', RZ.fingerprint(replay) === RZ.fingerprint(again));
+
+  let held = 0;
+  let broken = 0;
+  for (let seed = 1; seed <= 3; seed++) {
+    const holding = RZ.createSim(CFG, seed, [{ tick: 1, type: 'hold', on: true }]);
+    const limit = (CFG.chapter.tides + 3) * (CFG.tide.calm + CFG.tide.surge + CFG.tide.hold + CFG.tide.retreat) * CFG.sim.ticksPerSecond;
+    for (let t = 0; t < limit; t++) RZ.stepSim(holding);
+    if (holding.chapter.no === 1 && holding.tide.number > CFG.chapter.tides) held++;
+    if (holding.chapters.some(summary => !summary.complete)) broken++;
+  }
+  check('holding the land keeps it past ' + CFG.chapter.tides + ' tides (' + held + ' of 3 still there)', held > 0);
+  check('a held land only goes once its board is done', broken === 0);
 });
 
 section('Random calls, on many seeds, for crashes and stuck rangers', () => {

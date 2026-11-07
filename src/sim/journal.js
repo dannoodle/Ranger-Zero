@@ -14,10 +14,10 @@ var RZ = RZ || {};
       sites: world.sites.map(function (site) {
         return { id: site.id, name: site.name, x: site.x, y: site.y };
       }),
-      siteAt: 0,
+      board: 0,
+      objectives: [],    // the board for this land, copied from home (see objectives.js)
+      mission: null,     // the objective the line is working on now
       landDone: false,
-      round: 1,
-      mission: null,
       stashes: {},
       tide: {
         active: false,
@@ -37,7 +37,6 @@ var RZ = RZ || {};
       entries: [],
       rng: rng
     };
-    startMission(book, 0);
     return book;
   };
 
@@ -50,7 +49,6 @@ var RZ = RZ || {};
     book.sites = world.sites.map(function (site) {
       return { id: site.id, name: site.name, x: site.x, y: site.y };
     });
-    book.siteAt = 0;
     book.landDone = false;
     book.stashes = {};
     book.graves = [];
@@ -58,28 +56,15 @@ var RZ = RZ || {};
     book.patience = 0;
     book.lastLoss = null;
     book.zero.turnback = null;
-    startMission(book, tick);
   };
 
-  function startMission(book, tick) {
-    var site = book.sites[book.siteAt];
-    book.mission = {
-      id: site.id, name: site.name, x: site.x, y: site.y,
-      attempts: 0, startTick: tick
-    };
-  }
-
-  RZ.nextMission = function (book, tick) {
-    book.siteAt++;
-    if (book.siteAt >= book.sites.length) {
-      book.siteAt = 0;
-      book.round++;
-    }
-    startMission(book, tick);
+  // Names like "the old drone" can start a sentence, so every sentence gets its capital here.
+  RZ.sentences = function (text) {
+    return text.replace(/(^|[.!?]\s+)([a-z])/g, function (all, before, letter) { return before + letter.toUpperCase(); });
   };
 
   RZ.writeEntry = function (book, clock, kind, text) {
-    book.entries.push({ tick: clock.tick, kind: kind, text: text });
+    book.entries.push({ tick: clock.tick, kind: kind, text: RZ.sentences(text) });
   };
 
   function times(n) {
@@ -107,7 +92,9 @@ var RZ = RZ || {};
       if (d < best) { best = d; bestName = label; }
     }
     book.places.forEach(function (place) { consider(place, place.name); });
-    consider(book.mission, book.mission.name);
+    book.objectives.forEach(function (objective) {
+      if (objective.type !== 'retrieve') consider(objective, objective.name);
+    });
     Object.keys(map.villages).forEach(function (id) { consider(map.villages[id], map.villages[id].name); });
     return bestName;
   };

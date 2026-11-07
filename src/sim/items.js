@@ -3,11 +3,12 @@
 var RZ = RZ || {};
 
 (function () {
-  var GOODS = ['food', 'ammo', 'med', 'loot', 'grenade'];
+  // A relic is the thing a Retrieve objective is after. It's carried like any other good.
+  var GOODS = ['food', 'ammo', 'med', 'loot', 'grenade', 'relic'];
   RZ.GOODS = GOODS;
 
   RZ.emptyPack = function () {
-    return { food: 0, ammo: 0, med: 0, loot: 0, grenade: 0, weapons: [] };
+    return { food: 0, ammo: 0, med: 0, loot: 0, grenade: 0, relic: 0, weapons: [] };
   };
 
   RZ.packWeight = function (cfg, pack) {
@@ -120,10 +121,10 @@ var RZ = RZ || {};
     }
   };
 
-  // The tide eats anything left in the open as it passes.
+  // The tide eats anything left in the open as it passes, except a relic, which it can't digest.
   RZ.digest = function (sim) {
     var world = sim.world;
-    sim.items = sim.items.filter(function (item) { return !RZ.tideCovers(sim, item.x + item.y * world.w); });
+    sim.items = sim.items.filter(function (item) { return item.kind === 'relic' || !RZ.tideCovers(sim, item.x + item.y * world.w); });
     sim.bodies = sim.bodies.filter(function (body) {
       if (!RZ.tideCovers(sim, body.x + body.y * world.w)) return true;
       sim.stats.bodiesLost++;
@@ -175,10 +176,14 @@ var RZ = RZ || {};
         taken.push(item.weapon);
         return false;
       }
-      var fits = Math.min(item.qty, Math.floor(spare / cfg.items.weights[item.kind]));
+      // A ranger always makes room for a relic.
+      var fits = item.kind === 'relic' ? item.qty : Math.min(item.qty, Math.floor(spare / cfg.items.weights[item.kind]));
       if (fits <= 0) return true;
       r.pack[item.kind] += fits;
-      if (item.kind === 'grenade') taken.push(fits === 1 ? 'a grenade' : fits + ' grenades');
+      if (item.kind === 'relic') {
+        taken.push('relic');
+        RZ.relicTaken(sim, item);
+      } else if (item.kind === 'grenade') taken.push(fits === 1 ? 'a grenade' : fits + ' grenades');
       else taken.push(fits + ' ' + item.kind);
       item.qty -= fits;
       return item.qty > 0;
@@ -196,6 +201,6 @@ var RZ = RZ || {};
   };
 
   RZ.copyPack = function (pack) {
-    return { food: pack.food, ammo: pack.ammo, med: pack.med, loot: pack.loot, grenade: pack.grenade || 0, weapons: pack.weapons.slice() };
+    return { food: pack.food, ammo: pack.ammo, med: pack.med, loot: pack.loot, grenade: pack.grenade || 0, relic: pack.relic || 0, weapons: pack.weapons.slice() };
   };
 })();

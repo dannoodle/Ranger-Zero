@@ -92,8 +92,13 @@ var RZ = RZ || {};
       carried: function (rounds) {
         sim.rangers[sim.rangers.length - 1].carried += rounds;
       },
-      nextMission: function () {
-        RZ.advanceMission(sim);
+      // The line takes an objective on. Its clock starts the first time.
+      focus: function (id) {
+        var objective = RZ.bookObjective(sim.book, id);
+        if (!objective || objective.startTick !== undefined) return;
+        objective.startTick = sim.tick;
+        objective.startRanger = sim.ranger.no;
+        objective.startTide = sim.tide.number;
       },
       take: function (kind, amount) {
         var r = sim.ranger;
@@ -181,26 +186,63 @@ var RZ = RZ || {};
       usedSafeHouse: function (id) {
         sim.lastSafe = id;
       },
-      survey: function () {
+      // Each of these checks the real world, as act always does, then pays out if it's true.
+      survey: function (id) {
         var r = sim.ranger;
-        var site = sim.world.sites[sim.book.siteAt];
-        var dx = site.x - r.x;
-        var dy = site.y - r.y;
+        var objective = RZ.boardObjective(sim, id);
+        if (!objective || objective.type !== 'survey' || objective.done) return false;
+        var dx = objective.x - r.x;
+        var dy = objective.y - r.y;
         if (Math.sqrt(dx * dx + dy * dy) > sim.cfg.planner.surveyReach + 1) return false;
         sim.stats.sitesReached++;
+        RZ.giveReward(sim, id, objective.x, objective.y);
         return true;
       },
-      missionDone: function () {
-        var m = sim.book.mission;
+      clearCamp: function (id) {
+        var r = sim.ranger;
+        var objective = RZ.boardObjective(sim, id);
+        if (!objective || objective.type !== 'clear' || objective.done) return false;
+        var dx = objective.x - r.x;
+        var dy = objective.y - r.y;
+        if (Math.sqrt(dx * dx + dy * dy) > sim.cfg.objectives.clearReach) return false;
+        if (RZ.campLeft(sim, objective.campId) > 0) return false;
+        sim.stats.campsCleared = (sim.stats.campsCleared || 0) + 1;
+        RZ.giveReward(sim, id, objective.x, objective.y);
+        return true;
+      },
+      // A relic only counts once it's under the home ring.
+      deliverRelic: function (id) {
+        var r = sim.ranger;
+        var place = RZ.safeHere(r, sim.book);
+        var objective = RZ.boardObjective(sim, id);
+        if (!place || !place.isHome || r.pack.relic <= 0 || !objective || objective.type !== 'retrieve' || objective.done) return false;
+        r.pack.relic--;
+        return true;
+      },
+      stockMet: function (id) {
+        var r = sim.ranger;
+        var place = RZ.safeHere(r, sim.book);
+        var objective = RZ.boardObjective(sim, id);
+        if (!place || !objective || objective.type !== 'stock' || objective.done || place.id !== objective.placeId) return false;
+        var stash = sim.stashes[place.id];
+        var goods = objective.goods;
+        if (stash.food < goods.food || stash.ammo < goods.ammo || stash.med < goods.med) return false;
+        RZ.giveReward(sim, id, objective.x, objective.y);
+        return true;
+      },
+      missionDone: function (id) {
+        var m = RZ.bookObjective(sim.book, id);
+        if (!m || !RZ.finishObjective(sim, id)) return false;
         sim.stats.missions.push({
           name: m.name,
+          type: m.type,
           attempts: m.attempts,
-          rangers: sim.ranger.no - m.startRanger + 1,
-          seconds: (sim.tick - m.startTick) / sim.cfg.sim.ticksPerSecond,
-          tides: sim.tide.number - m.startTide
+          rangers: sim.ranger.no - (m.startRanger === undefined ? sim.ranger.no : m.startRanger) + 1,
+          seconds: (sim.tick - (m.startTick === undefined ? sim.tick : m.startTick)) / sim.cfg.sim.ticksPerSecond,
+          tides: sim.tide.number - (m.startTide === undefined ? sim.tide.number : m.startTide)
         });
-        sim.pendingMission = true;
-        RZ.emit(sim, 'triumph', { name: m.name, no: sim.ranger.no });
+        RZ.emit(sim, 'triumph', { name: m.name, title: m.title, kind: m.type, no: sim.ranger.no });
+        return true;
       },
       recoverBody: function () {
         var r = sim.ranger;
@@ -249,12 +291,11 @@ var RZ = RZ || {};
       name: person.name, first: person.first, temper: person.temper, quirk: sim.ranger.quirkLabel, past: person.past,
       bornTide: sim.tide.number, chapter: sim.chapter.no, kills: 0, carried: 0, deeds: [], track: [place.x, place.y]
     });
-    if (sim.book.mission.startRanger === undefined) {
-      sim.book.mission.startRanger = sim.rangerCount;
-      sim.book.mission.startTide = sim.tide.number;
-    }
     var where = freeKit ? 'at home with the basic kit' : 'at ' + place.name + ' with nothing but the journal';
-    RZ.writeEntry(sim.book, clockOf(sim), 'arrival', 'Ranger ' + sim.rangerCount + ', ' + person.name + ', arrives ' + where + '. ' + person.past);
+    var board = sim.book.objectives;
+    var done = board.filter(function (objective) { return objective.done; }).length;
+    var tally = sim.rangerCount > 1 && board.length ? ' The board has ' + done + ' of ' + board.length + ' done.' : '';
+    RZ.writeEntry(sim.book, clockOf(sim), 'arrival', 'Ranger ' + sim.rangerCount + ', ' + person.name + ', arrives ' + where + '. ' + person.past + tally);
     sim.recruits = RZ.makeRecruits(sim);
     sim.pick = 0;
     greet(sim, sim.ranger);
@@ -298,21 +339,6 @@ var RZ = RZ || {};
     if (record.deeds.indexOf(text) < 0) record.deeds.push(text);
   };
 
-  RZ.advanceMission = function (sim) {
-    var book = sim.book;
-    var chapter = sim.chapter;
-    chapter.surveyed = chapter.surveyed || [];
-    chapter.surveyed.push(book.mission.name);
-    if (book.siteAt === book.sites.length - 1) {
-      chapter.landDone = true;
-      book.landDone = true;
-      RZ.writeEntry(book, clockOf(sim), 'triumph', 'That\'s every site in this land. There\'s nothing left out there for us but the next tide.');
-      RZ.emit(sim, 'land-done', {});
-      RZ.speak(sim, sim.ranger, 'land_done', null, true);
-    }
-    RZ.nextMission(book, sim.tick);
-  };
-
   // Moves a living ranger to a safe house with a clean slate, keeping their pack.
   RZ.relocate = function (sim, r, place) {
     r.x = place.x;
@@ -325,7 +351,7 @@ var RZ = RZ || {};
     r.plan = null;
     r.grab = null;
     r.errand = null;
-    r.surveyed = null;
+    r.achieved = null;
     r.orderedOn = false;
     r.mode = 'plan';
     r.lastSafe = null;
@@ -357,7 +383,7 @@ var RZ = RZ || {};
     record.cause = cause;
     record.deathTick = sim.tick;
     record.kills = r.kills;
-    record.reached = r.surveyed ? true : false;
+    record.reached = r.achieved ? true : false;
     record.words = words;
     record.deathTide = sim.tide.number;
     record.x = r.x;
@@ -370,7 +396,7 @@ var RZ = RZ || {};
     RZ.commitMap(sim.book, r);
     var pack = RZ.copyPack(r.pack);
     sim.bodies.push({ x: r.x, y: r.y, no: r.no, name: r.name, first: r.first, words: words, pack: pack });
-    var worth = pack.food + pack.med * 2 + pack.ammo * 0.1 + pack.weapons.length;
+    var worth = pack.food + pack.med * 2 + pack.ammo * 0.1 + pack.weapons.length + (pack.relic || 0) * sim.cfg.objectives.relicWorth;
     sim.book.body = {
       x: r.x, y: r.y, no: r.no, first: r.first, worth: worth,
       nearName: RZ.nearestName(sim.book, r.map, r.x, r.y)
@@ -481,6 +507,7 @@ var RZ = RZ || {};
     var home = sim.stashes.home;
     RZ.GOODS.forEach(function (kind) { home[kind] += ration[kind] || 0; });
     RZ.spawnSalvage(sim);
+    RZ.keepRelics(sim);
     RZ.placeAnomalies(sim);
     RZ.reinforceCamps(sim);
     RZ.fadeOldSelves(sim);
@@ -502,6 +529,10 @@ var RZ = RZ || {};
       enemyRng: rng.fork('enemies'),
       combatRng: rng.fork('combat'),
       anomalyRng: rng.fork('anomalies'),
+      boardRng: rng.fork('board'),
+      rewardRng: rng.fork('rewards'),
+      board: null,
+      hold: !!cfg.chapter.hold,       // Zero's switch: keep this land until the board is done
       view: {
         stamp: new Uint32Array(world.w * world.h),
         cells: new Int32Array(world.w * world.h),
@@ -537,7 +568,7 @@ var RZ = RZ || {};
       callLog: [],
       script: script || null,
       scriptAt: 0,
-      chapter: { no: 1, startTide: 0, startRanger: 1, landDone: false, surveyed: [] },
+      chapter: { no: 1, startTide: 0, startRanger: 1, landDone: false, done: [], surveyedSites: [] },
       chapters: [],
       usedNames: {},
       stats: {
@@ -553,6 +584,7 @@ var RZ = RZ || {};
     RZ.setupCamps(sim);
     RZ.spawnSalvage(sim);
     RZ.placeAnomalies(sim);
+    RZ.setupBoard(sim);
     sim.recruits = RZ.makeRecruits(sim);
     sim.firstChoice = sim.recruits;
     spawnNext(sim);
@@ -569,11 +601,6 @@ var RZ = RZ || {};
     stepRanger(sim);
     RZ.stepAnomalies(sim);
     if (!sim.ranger.alive && sim.tick >= sim.respawnTick) spawnNext(sim);
-    if (sim.pendingMission) {
-      sim.pendingMission = false;
-      sim.book.mission.startRanger = sim.rangerCount;
-      sim.book.mission.startTide = sim.tide.number;
-    }
   };
 
   // A fingerprint of the sim state, for checking that a seed repeats exactly.
@@ -583,7 +610,7 @@ var RZ = RZ || {};
       sim.tick, sim.tide.number, sim.tide.level.toFixed(6), r.no, r.x, r.y, r.hp.toFixed(6), r.energy.toFixed(6),
       JSON.stringify(r.pack), sim.items.length, sim.scavs.length, sim.olds.length, sim.anomalies.length, sim.bodies.length, sim.signal,
       sim.book.zero.trust, sim.talkSeq,
-      JSON.stringify(sim.stashes), sim.book.entries.length, JSON.stringify(sim.stats)
+      JSON.stringify(sim.stashes), sim.book.entries.length, JSON.stringify(sim.stats), sim.hold, sim.board ? sim.board.no : 0
     ].join('|');
     return RZ.hashString(text).toString(16);
   };

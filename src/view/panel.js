@@ -16,6 +16,9 @@ var RZ = RZ || {};
 
   var PLAN_WORDS = {
     survey: 'on the survey run',
+    clear: 'going to break a camp',
+    retrieve: 'going for the relic',
+    deliver: 'carrying it home',
     stock: 'carrying stores forward',
     fetch: 'going for supplies',
     advance: 'moving up',
@@ -95,6 +98,91 @@ var RZ = RZ || {};
       : '';
   };
 
+  var URGENT_NOW = {
+    shelter: 'Running for gold',
+    climb: 'Climbing for high ground',
+    flee: 'Running from them',
+    fight: 'Fighting'
+  };
+
+  function listItem(className, glyph, question, answer) {
+    var item = document.createElement('li');
+    item.className = className;
+    var mark = document.createElement('i');
+    mark.textContent = glyph;
+    item.appendChild(mark);
+    var q = document.createElement('b');
+    q.textContent = question;
+    item.appendChild(q);
+    if (answer) item.appendChild(document.createTextNode(answer));
+    return item;
+  }
+
+  // The checklist: what the ranger asked themselves at the last safe house, what they're doing now,
+  // and the steps left. Read from the reasoning the planner keeps with each plan.
+  Panel.prototype.updatePlan = function () {
+    var sim = this.sim;
+    var r = sim.ranger;
+    var book = sim.book;
+    var memory = RZ.planMemory(sim);
+    var kept = memory.plan;
+    var plan = r.alive ? r.plan : null;
+    var urgent = r.alive && URGENT_NOW[r.mode];
+
+    var now;
+    if (!r.alive) now = 'No ranger in the field.';
+    else if (urgent) now = URGENT_NOW[r.mode];
+    else if (plan && plan.brief) now = plan.brief.task;
+    else if (plan && plan.kind === 'errand') now = 'Go to Zero\'s mark, then back under gold';
+    else now = 'Thinking it over';
+    if (r.alive && !urgent && plan && plan.brief && plan.kind !== 'errand') {
+      for (var n = plan.at; n < plan.steps.length; n++) {
+        if (plan.steps[n].do === 'look' || plan.steps[n].do === 'open') {
+          now = 'Detour to Zero\'s mark, then: ' + now.charAt(0).toLowerCase() + now.slice(1);
+          break;
+        }
+      }
+    }
+    if (urgent && r.mode === 'shelter') {
+      var shelter = RZ.nearestSafe(r, book, { x: r.x, y: r.y });
+      if (shelter) now += ': ' + shelter.place.name + ', ' + Math.ceil(shelter.seconds) + 's';
+    }
+
+    var key = [r.no, r.alive, now, kept ? kept.brief.tick + kept.kind : '', plan ? plan.at + '/' + plan.steps.length : ''].join('|');
+    if (key === this.planKey) return;
+    this.planKey = key;
+
+    var brief = memory.brief;
+    byId('planGoal').textContent = book.landDone ? 'The board is done'
+      : book.mission.title + (brief && brief.staging && brief.mission.id === book.mission.id && book.mission.type !== 'stock' ? ' from ' + brief.staging.name : '');
+
+    var traceNode = byId('planTrace');
+    traceNode.innerHTML = '';
+    traceNode.className = urgent || !r.alive ? 'stale' : '';
+    if (kept) {
+      traceNode.appendChild(listItem('when', '', 'Decided at ' + kept.brief.fromName + ', ' + clockText(kept.brief.tick, sim.cfg), ''));
+      kept.trace.forEach(function (row) {
+        var glyph = row.ok === true ? '✓' : row.ok === false ? '✗' : '·';
+        traceNode.appendChild(listItem(row.ok === true ? 'pass' : row.ok === false ? 'fail' : 'info', glyph, row.q, row.a));
+      });
+    }
+
+    var nowNode = byId('planNow');
+    nowNode.textContent = '→ ' + now;
+    nowNode.className = urgent ? 'urgent' : '';
+
+    var stepsNode = byId('planSteps');
+    stepsNode.innerHTML = '';
+    if (plan && plan.kind !== 'wait' && !urgent) {
+      plan.steps.forEach(function (step, n) {
+        var item = document.createElement('li');
+        item.className = n < plan.at ? 'done' : n === plan.at ? 'now' : '';
+        item.textContent = RZ.stepLabel(sim, plan, n);
+        stepsNode.appendChild(item);
+      });
+    }
+  };
+
   // Seconds until the tide truly reaches this cell. Only Zero can know this.
   function tideArrival(sim, cell) {
     var c = sim.cfg.tide;
@@ -151,9 +239,11 @@ var RZ = RZ || {};
     var chapter = sim.chapter;
     var mission = book.mission;
 
-    byId('hudChapter').textContent = 'Chapter ' + chapter.no + '  ·  tide ' + Math.max(0, tide.number - chapter.startTide) + ' of ' + cfg.chapter.tides;
-    byId('hudMission').textContent = 'Survey ' + mission.name + (mission.attempts ? ', attempt ' + mission.attempts : '') +
-      '  ·  ' + (chapter.surveyed ? chapter.surveyed.length : 0) + ' of ' + book.sites.length + ' sites';
+    byId('hudChapter').textContent = 'Chapter ' + chapter.no + '  ·  tide ' + Math.max(0, tide.number - chapter.startTide) + ' of ' + cfg.chapter.tides +
+      (sim.hold ? '  ·  held' : '');
+    var doneCount = book.objectives.filter(function (o) { return o.done; }).length;
+    byId('hudMission').textContent = (book.landDone ? 'Board done' : mission.title + (mission.attempts && mission.type !== 'stock' ? ', attempt ' + mission.attempts : '')) +
+      '  ·  ' + doneCount + ' of ' + book.objectives.length + ' done';
 
     var bar = byId('windowBar');
     var fill = byId('windowFill');
@@ -310,6 +400,7 @@ var RZ = RZ || {};
     if (Math.abs(this.sim.tick - this.lastStatus) < 3) return;
     this.lastStatus = this.sim.tick;
     this.updateStatus();
+    this.updatePlan();
     this.updateHud();
     this.updateRadio();
   };

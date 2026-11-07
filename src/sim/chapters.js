@@ -1,4 +1,5 @@
-// Chapters. After enough tides, or once a land is fully surveyed, a greater tide comes. It wipes the
+// Chapters. After enough tides, or once a land's board is done, a greater tide comes. With the land
+// held (Zero's switch, or chapter.hold), only a finished board brings it. It wipes the
 // land: stashes are carried home, a new map rises, and the journal's map is blank again. Lessons,
 // trust and the ranger under gold all survive it.
 
@@ -8,7 +9,8 @@ var RZ = RZ || {};
   // Checked when a tide starts.
   RZ.greaterDue = function (sim) {
     var chapter = sim.chapter;
-    return chapter.landDone || sim.tide.number - chapter.startTide >= sim.cfg.chapter.tides;
+    if (chapter.landDone) return true;
+    return !sim.hold && sim.tide.number - chapter.startTide >= sim.cfg.chapter.tides;
   };
 
   function landNames(world) {
@@ -52,8 +54,8 @@ var RZ = RZ || {};
       tides: sim.tide.number - chapter.startTide,
       rangers: sim.rangers.filter(function (record) { return record.chapter === chapter.no; }).length,
       lost: lost.map(function (record) { return record.first; }),
-      surveyed: chapter.surveyed || [],
-      sites: book.sites.length,
+      done: chapter.done || [],
+      board: book.objectives.length,
       complete: chapter.landDone
     };
     sim.chapters.push(summary);
@@ -83,15 +85,14 @@ var RZ = RZ || {};
     sim.anomalies = [];
     sim.bodies = [];
     sim.lastSafe = null;
-    sim.chapter = { no: chapterNo, startTide: sim.tide.number, startRanger: sim.rangerCount, landDone: false, surveyed: [] };
+    sim.chapter = { no: chapterNo, startTide: sim.tide.number, startRanger: sim.rangerCount, landDone: false, done: [], surveyedSites: [] };
 
     RZ.newLandBook(sim.book, cfg, world, sim.tick);
-    sim.book.mission.startRanger = sim.rangerCount;
-    sim.book.mission.startTide = sim.tide.number;
     RZ.rebuildFront(sim);
     RZ.setupCamps(sim);
     RZ.spawnSalvage(sim);
     RZ.placeAnomalies(sim);
+    RZ.setupBoard(sim);
 
     var r = sim.ranger;
     var clock = { tick: sim.tick, seconds: sim.tick / cfg.sim.ticksPerSecond };

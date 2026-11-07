@@ -43,6 +43,48 @@ var RZ = RZ || {};
       greedy: ['Hauling for free again. To {place}.'],
       reckless: ['Pack mule again. {place}, then something interesting.']
     },
+    setout_clear: {
+      any: ['Going to {site} to finish that camp.', 'The camp at {site}. Today it ends.', '{site}. Loaded for a fight.'],
+      cautious: ['{site}. I don\'t like it, but the board wants it.'],
+      reckless: ['{site}. Finally, something to do.', 'Let\'s go and knock on doors at {site}.'],
+      greedy: ['A whole camp\'s worth of kit at {site}. Going.']
+    },
+    setout_retrieve: {
+      any: ['Going for {site}.', 'Off to bring in {site}.', 'Someone left {site} out there. Going to get it.'],
+      greedy: ['{site}. Wonder what home will pay for it.'],
+      cautious: ['Fetching {site}. In and straight out.']
+    },
+    setout_deliver: {
+      any: ['Taking {site} the rest of the way home.', 'Home with {site}. Last leg.'],
+      cautious: ['Carrying {site} home like it\'s made of glass.']
+    },
+    cleared: {
+      any: ['That\'s the last of them. {site} is clear.', 'Nobody left at {site}. It\'s done.', '{site} is quiet now.'],
+      reckless: ['Who\'s next? No one? {site}\'s clear, then.'],
+      cautious: ['I think that\'s all of them. I really think it is.']
+    },
+    not_cleared: {
+      any: ['Someone\'s still at {site}. I can feel it.', 'I can\'t find the rest of them. {site} isn\'t done.']
+    },
+    relic_got: {
+      any: ['Got {site}. Heavier than it looks.', 'I\'ve got {site}. Coming home.', 'Found it. {site}, right where you said.'],
+      greedy: ['{site}. Mine now. Well, ours.']
+    },
+    relic_missing: {
+      any: ['It\'s not here, Zero. {site} isn\'t here.', 'Nothing. Someone got to {site} first.']
+    },
+    board_new: {
+      any: ['New orders. Right.', 'Scrapping the lot? All right, Zero.', 'Fresh board. Reading it now.'],
+      reckless: ['About time. The old one was dull.'],
+      cautious: ['A new board. I\'ll start again carefully.']
+    },
+    hold_land: {
+      any: ['We\'re staying. Understood.', 'Not leaving till it\'s done. Copy.'],
+      reckless: ['Good. I wasn\'t finished with this place.']
+    },
+    release_land: {
+      any: ['Copy. The tide decides, then.', 'Understood. When it goes, it goes.']
+    },
     setout_fetch: { any: ['Going back for supplies.', '{place} is short. Heading home for more.'] },
     setout_advance: { any: ['Moving up to {place}.', 'On to {place}. It\'s closer.'] },
     setout_forage: {
@@ -257,7 +299,7 @@ var RZ = RZ || {};
     },
 
     land_done: {
-      any: ['That\'s all of it, Zero. Every site.', 'There\'s nothing left out here to survey.', 'We did it. All of it. Now what?']
+      any: ['That\'s the whole board, Zero.', 'Nothing left on the board out here.', 'We did it. All of it. Now what?']
     },
     new_land: {
       any: ['Zero? The map\'s wrong. All of it.', 'I don\'t recognise anything out there.', 'It\'s all different. Everything\'s different.', 'The stores came through. Nothing else did.'],
@@ -363,7 +405,7 @@ var RZ = RZ || {};
     if (!pool.length) return null;
     var text = sim.voiceRng.pick(pool);
     sim.talkUsed[text] = true;
-    return fill(text, vars);
+    return RZ.sentences(fill(text, vars));
   }
 
   RZ.addTalk = function (sim, kind, text, who) {
@@ -379,7 +421,8 @@ var RZ = RZ || {};
     old_seen: 1, old_kill: 1, struck: 1, right: 1, right_ignored: 1, wrong: 1, wrong_turnback: 1, safe_close: 1,
     ack_turnback: 1, no_turnback: 1, ack_pushon: 1, no_pushon: 1, pushon_nothing: 1, turnback_inside: 1,
     ack_warn: 1, no_warn: 1, ack_send: 1, no_send: 1, no_time: 1, ack_crate: 1, crate_later: 1, crate_stash: 1,
-    crate_got: 1, new_land: 1, land_done: 1, climb: 1, flee: 1, dash: 1, kill: 1, body_found: 1, first: 1, grave: 1
+    crate_got: 1, new_land: 1, land_done: 1, cleared: 1, not_cleared: 1, relic_got: 1, relic_missing: 1, board_new: 1,
+    hold_land: 1, release_land: 1, climb: 1, flee: 1, dash: 1, kill: 1, body_found: 1, first: 1, grave: 1
   };
 
   RZ.speak = function (sim, r, key, vars, force) {
@@ -429,13 +472,15 @@ var RZ = RZ || {};
     if (!plan || plan.kind === 'wait') {
       if (plan && plan.why === 'tide') return 'Sit tight until the tide has gone through, then see what\'s what.';
       if (plan && plan.why === 'stores') return 'The stores are empty. I\'m waiting for the next ration.';
-      if (plan && plan.why === 'done') return 'Nothing. It\'s all surveyed. I\'m waiting to see what comes for it.';
+      if (plan && plan.why === 'done') return 'Nothing. The board\'s done. I\'m waiting to see what comes for it.';
       return 'Waiting for a window long enough for ' + book.mission.name + '. The journal gives me ' + Math.max(0, left) + ' seconds on this one.';
     }
-    if (plan.kind === 'survey') {
+    if (plan.attempt) {
       var far = RZ.legSeconds(r, here, book.mission);
-      return (plan.at === 0 ? book.mission.name + ' and back.' + (far ? ' About ' + Math.round(far.seconds) + ' seconds to get there.' : '') : 'Got it. Going home now.') + timing;
+      var goal = plan.kind === 'clear' ? 'The camp at ' + book.mission.name + ', then back.' : plan.kind === 'retrieve' ? book.mission.name + ', then back.' : book.mission.name + ' and back.';
+      return (plan.at === 0 ? goal + (far ? ' About ' + Math.round(far.seconds) + ' seconds to get there.' : '') : 'Done there. Going home now.') + timing;
     }
+    if (plan.kind === 'deliver') return 'Getting ' + book.mission.name + ' home. That\'s all that matters now.' + timing;
     if (plan.kind === 'stock') return 'Carrying stores up to the staging post, so whoever goes for ' + book.mission.name + ' goes loaded.' + timing;
     if (plan.kind === 'fetch') return 'The stash is short, so I\'m going home for more.' + timing;
     if (plan.kind === 'advance') return 'Moving up to where I can start for ' + book.mission.name + '.' + timing;

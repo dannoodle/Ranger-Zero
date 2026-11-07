@@ -474,6 +474,105 @@ input {
 
 #rPack { color: var(--ink-dim); font-size: 12px; }
 
+/* The plan: what the ranger asked themselves, what they're doing, and the steps left */
+
+#plan {
+  padding: 8px 14px 9px;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.plan-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.plan-head .title { font: 600 15px/1.2 var(--serif); }
+#planGoal { color: var(--ink-dim); text-align: right; }
+
+#planTrace, #planSteps { list-style: none; margin: 0; padding: 0; }
+#planTrace li { padding-left: 14px; text-indent: -14px; color: var(--ink-faint); line-height: 1.35; }
+#planTrace li i { display: inline-block; width: 14px; text-indent: 0; font-style: normal; }
+#planTrace li b { font-weight: normal; color: var(--ink-dim); }
+#planTrace li b::after { content: ': '; color: var(--ink-faint); }
+#planTrace li.when b::after { content: ''; }
+#planTrace li.pass i { color: var(--teal); }
+#planTrace li.fail i { color: var(--red); }
+#planTrace li.when { display: block; color: var(--ink-faint); font-style: italic; }
+#planTrace.stale { opacity: 0.5; }
+
+#planNow { margin-top: 2px; color: var(--paper); font: italic 14px/1.3 var(--serif); }
+#planNow.urgent { color: var(--red); }
+
+#planSteps { display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--ink-faint); }
+#planSteps li { counter-increment: step; }
+#planSteps li::before { content: counter(step) ' '; color: var(--ink-faint); }
+#planSteps li.done { text-decoration: line-through; opacity: 0.6; }
+#planSteps li.now { color: var(--paper); }
+
+/* The board, over the top left of the map */
+
+#board {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 268px;
+  max-height: calc(100% - 20px);
+  overflow-y: auto;
+  padding: 6px 8px 7px;
+  background: rgba(10, 14, 18, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+#stage.reading #board { display: none; }
+.board-head { display: flex; gap: 4px; align-items: center; }
+.board-head .board-title { margin-right: auto; padding-left: 0; color: var(--ink); font: 600 14px/1.2 var(--serif); }
+.board-head button:not(.board-title) { font-size: 11px; border-color: var(--line); }
+.board-list { list-style: none; margin: 5px 0 0; padding: 0; display: grid; gap: 2px; }
+.board-line { display: grid; grid-template-columns: 14px 1fr auto 26px; gap: 5px; color: var(--ink-dim); cursor: help; }
+.board-rank { color: var(--ink-faint); font-size: 10.5px; text-align: right; }
+.board-rank.top { color: var(--paper); }
+.board-list li.focus .board-line { color: var(--paper); }
+.board-list li.done .board-line { color: var(--gold); opacity: 0.75; }
+.board-line .glyph { font-style: normal; text-align: center; }
+.board-line .glyph.clear { color: var(--red); }
+.board-line .glyph.retrieve { color: #ffd968; }
+.board-line .glyph.stock { color: var(--gold); }
+.board-state { color: var(--ink-faint); white-space: nowrap; }
+.board-checks { list-style: none; margin: 1px 0 3px 19px; padding: 0; color: var(--ink-faint); font-size: 11.5px; }
+.board-checks li.ticked { color: var(--teal); }
+.board-note { margin: 5px 0 0; color: var(--ink-faint); font: italic 12px/1.3 var(--serif); }
+
+/* A safe house's stores, opened by clicking it on the map */
+
+#storeCard {
+  position: absolute;
+  top: 110px;
+  right: 12px;
+  width: 280px;
+  padding: 10px 12px;
+  display: none;
+  background: rgba(14, 19, 23, 0.95);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--gold);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+#storeCard.open { display: block; }
+.store-head { display: flex; justify-content: space-between; align-items: baseline; }
+.store-head strong { font: 600 16px/1.2 var(--serif); color: var(--gold); }
+.store-role, .store-note { margin: 3px 0 6px; color: var(--ink-dim); font: italic 13px/1.35 var(--serif); }
+.store-note { margin: 6px 0 0; color: var(--ink-faint); font-size: 12px; }
+#storeCard table { width: 100%; border-collapse: collapse; }
+#storeCard th { color: var(--ink-faint); font-weight: normal; text-align: right; }
+#storeCard td { padding: 1px 0; text-align: right; color: var(--ink); }
+#storeCard td:first-child, #storeCard th:first-child { text-align: left; color: var(--ink-dim); }
+#storeCard td.short { color: #f08a6a; }
+#storeCard td.dim { color: var(--ink-faint); }
+#storeCard tr.wrong td { background: rgba(207, 155, 255, 0.09); }
+#storeCard tr.wrong td:first-child::after { content: ' *'; color: #cf9bff; }
+
 #radio {
   padding: 9px 14px 10px;
   border-bottom: 1px solid var(--line);
@@ -602,6 +701,7 @@ small.wont { color: var(--red); }
 
 @media (max-height: 760px) {
   #radioLog { height: 78px; }
+  #planTrace li:not(.fail):not(.when) { display: none; }
   #portrait { width: 58px; height: 58px; }
 }
 
@@ -616,7 +716,9 @@ small.wont { color: var(--red); }
   #stage { min-height: 300px; }
   #side { border-left: 0; border-top: 1px solid var(--line); }
   #controls, #line { padding-left: 16px; padding-right: 16px; }
-  #status, #radio, #journal { padding-left: 16px; padding-right: 16px; }
+  #status, #plan, #radio, #journal { padding-left: 16px; padding-right: 16px; }
+  #storeCard { top: auto; bottom: 12px; right: 16px; left: 16px; width: auto; }
+  #board { top: auto; bottom: 8px; left: 8px; width: 230px; max-height: 45%; }
   #journal { max-height: 70vh; }
   #overlay { align-items: flex-start; }
   .recruits { grid-template-columns: minmax(0, 1fr); }

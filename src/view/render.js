@@ -341,9 +341,11 @@ var RZ = RZ || {};
     ctx.textAlign = align || 'center';
     ctx.textBaseline = 'middle';
     // Names near the edge of the map stay on it.
-    var half = ctx.measureText(text).width / 2 + 2 * this.dpr;
+    var width = ctx.measureText(text).width + 4 * this.dpr;
+    var mapLeft = Math.max(0, this.originX);
     var mapRight = Math.min(this.width, this.originX + this.sim.world.w * this.scale);
-    x = Math.max(Math.max(0, this.originX) + half, Math.min(mapRight - half, x));
+    var before = ctx.textAlign === 'left' ? 0 : ctx.textAlign === 'right' ? width : width / 2;
+    x = Math.max(mapLeft + before, Math.min(mapRight - (width - before), x));
     ctx.lineWidth = 3 * this.dpr;
     ctx.strokeStyle = this.look.labelHalo;
     ctx.lineJoin = 'round';
@@ -496,8 +498,6 @@ var RZ = RZ || {};
     var self = this;
     var map = this.knownMap();
     var hideUnknown = this.mode === 'ranger';
-    var mission = sim.book.mission;
-
     world.safe.forEach(function (safe) {
       self.label(safe.name, self.toX(safe.x), self.toY(safe.y - sim.cfg.safe.radius - 1.6), look.gold, 12);
     });
@@ -505,24 +505,9 @@ var RZ = RZ || {};
       if (hideUnknown && !map.villages[village.id]) return;
       self.label(village.name, self.toX(village.x), self.toY(village.y + 6), look.labelDim, 11);
     });
-    world.sites.forEach(function (site) {
-      var active = mission && site.id === mission.id;
-      var x = self.toX(site.x);
-      var y = self.toY(site.y);
-      var size = (active ? 6 : 4) * self.dpr;
-      ctx.strokeStyle = active ? look.siteActive : look.site;
-      ctx.lineWidth = 1.6 * self.dpr;
-      ctx.beginPath();
-      ctx.moveTo(x, y - size);
-      ctx.lineTo(x + size, y + size * 0.8);
-      ctx.lineTo(x - size, y + size * 0.8);
-      ctx.closePath();
-      ctx.stroke();
-      self.label(site.name, x, y + 14 * self.dpr, active ? look.siteActive : look.site, 11);
-    });
   };
 
-  var ITEM_MARKS = { food: 'f', ammo: 'a', med: '+', loot: '$', weapon: 'R', crate: '#', grenade: 'g' };
+  var ITEM_MARKS = { food: 'f', ammo: 'a', med: '+', loot: '$', weapon: 'R', crate: '#', grenade: 'g', relic: '◆' };
 
   Renderer.prototype.drawItemMark = function (kind, x, y, alpha, weapon) {
     var ctx = this.ctx;
@@ -678,6 +663,7 @@ var RZ = RZ || {};
     this.drawTrack();
     this.drawGraves();
     this.drawItems();
+    this.drawRewards();
     this.drawBodies();
     this.drawAnomalies();
     this.drawMarks();
@@ -685,6 +671,9 @@ var RZ = RZ || {};
     this.drawCrates();
     this.drawScavengers();
     this.drawPlaces();
+    this.drawObjectives();
+    this.drawStores();
+    this.drawPlan();
     this.drawRoute();
     this.drawRanger(dt);
     this.fx.draw(dt);

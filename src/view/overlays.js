@@ -138,7 +138,7 @@ var RZ = RZ || {};
     card.appendChild(element('h1', '', 'The rangers are numbered from one. You are Zero.'));
     card.appendChild(element('p', 'lede', 'You\'re the voice on the radio at home. You can see the whole map, and they can\'t. ' +
       'You can warn them, send them, drop them a crate or tell them to run. They don\'t have to listen, and the journal remembers what you told them.'));
-    card.appendChild(element('p', 'keys', 'T turn back · P push on · W warn · S send · C crate · H history · M map · N sound · Space pause'));
+    card.appendChild(element('p', 'keys', 'T turn back · P push on · W warn · S send · C crate · H history · M map · N sound · Space pause · click an outpost to see its stores · the board is top left'));
     card.appendChild(element('h2', '', 'Who walks first?'));
     var pick = function (n) {
       RZ.queueCall(sim, { type: 'recruit', pick: n });
@@ -191,7 +191,7 @@ var RZ = RZ || {};
     card.appendChild(element('h1', '', summary.complete ? 'That land is finished.' : 'That land is gone.'));
     var places = summary.places.join(', ');
     card.appendChild(element('p', 'lede', places + ': all under the violet now. ' +
-      summary.tides + ' tides. ' + summary.surveyed.length + ' of ' + summary.sites + ' sites surveyed.'));
+      summary.tides + ' tides. ' + summary.done.length + ' of ' + summary.board + ' on the board done.'));
     if (summary.lost.length) card.appendChild(element('p', 'summary', 'We lost ' + summary.lost.join(', ') + '.'));
     else card.appendChild(element('p', 'summary', 'Nobody died in that land.'));
     card.appendChild(element('h2', '', 'Chapter ' + event.chapter));
@@ -275,7 +275,7 @@ var RZ = RZ || {};
     var deaths = sim.rangers.filter(function (entry) { return entry.cause; }).length;
     var sites = sim.stats.missions.length;
     head.appendChild(element('p', '', sim.rangers.length + (sim.rangers.length === 1 ? ' ranger, ' : ' rangers, ') + deaths + ' dead, ' +
-      sites + (sites === 1 ? ' site' : ' sites') + ' surveyed, chapter ' + sim.chapter.no + '.'));
+      sites + (sites === 1 ? ' objective' : ' objectives') + ' done, chapter ' + sim.chapter.no + '.'));
     var close = element('button', 'history-close', 'close');
     close.type = 'button';
     close.addEventListener('click', function () { self.toggleHistory(false); });

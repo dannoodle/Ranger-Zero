@@ -48,6 +48,8 @@
   var owed = 0;
   var lastTime = null;
   var mapHint = document.getElementById('mapHint');
+  var storeCard = RZ.makeStoreCard(sim, function () { return viewMode; });
+  var boardBox = RZ.makeBoardBox(sim, function (call) { sendCall(call); boardBox.update(); });
   var overlays = RZ.makeOverlays(sim, {
     resume: function () { held = false; },
     onPick: function () { audio.start(); panel.refresh(); },
@@ -226,9 +228,13 @@
     canvas.addEventListener('pointerup', function (event) {
       var click = dragging && dragging.moved < 6;
       dragging = null;
-      if (!click || !tool) return;
+      if (!click) return;
       var cell = renderer.toCell(event.clientX, event.clientY);
       if (!cell) return;
+      if (!tool) {
+        storeCard.toggle(RZ.safeAtCell(sim, cell));
+        return;
+      }
       var type = tool;
       setTool(tool);
       sendCall({ type: type, x: cell.x, y: cell.y });
@@ -256,6 +262,7 @@
       } else if (key === 'escape') {
         if (tool) setTool(tool);
         overlays.toggleHistory(false);
+        storeCard.show(null);
       } else if (key === 'f') {
         setCamera('auto');
       } else if (key === 'm') {
@@ -335,13 +342,18 @@
       }
     } else if (event.type === 'triumph') {
       audio.play('triumph');
-      overlays.toast(event.name + ' surveyed', 'gold', 5);
+      overlays.toast((event.title || event.name) + ': done', 'gold', 5);
     } else if (event.type === 'tide') {
       audio.play('tide');
       if (event.greater) overlays.toast('The greater tide', 'violet', 5);
       else if (calm) overlays.toast('The tide is rising', 'violet', 2.6);
     } else if (event.type === 'land-done') {
-      overlays.toast('Every site in this land is surveyed', 'gold', 6);
+      overlays.toast('The whole board is done', 'gold', 6);
+    } else if (event.type === 'reward') {
+      if (calm) overlays.toast(event.inStash ? 'A reward came into the stash' : 'A reward cache turned up', 'gold', 3.5);
+      audio.play('crate');
+    } else if (event.type === 'board') {
+      overlays.toast('A new board', 'gold', 4);
     } else if (event.type === 'old-rise') {
       overlays.toast(event.name + ' got up', 'violet', 4);
       audio.play('static');
@@ -422,6 +434,8 @@
     camera.update(seconds);
     renderer.draw(seconds);
     panel.update();
+    storeCard.update();
+    boardBox.update();
     audio.update(soundState());
     document.body.dataset.pace = running;
     requestAnimationFrame(frame);
@@ -446,6 +460,6 @@
     overlays.showIntro();
   }
   // For poking at a running game from the browser console.
-  window.RZdebug = { sim: sim, camera: camera, overlays: overlays, audio: audio };
+  window.RZdebug = { sim: sim, camera: camera, overlays: overlays, audio: audio, renderer: renderer, storeCard: storeCard };
   requestAnimationFrame(frame);
 })();

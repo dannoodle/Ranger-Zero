@@ -18,6 +18,8 @@
     </div>
     <div id="toast"></div>
     <div id="mapHint"></div>
+    <div id="storeCard" aria-live="off"></div>
+    <aside id="board" aria-label="The board"></aside>
     <aside id="history" aria-label="The line"></aside>
     <div id="overlay"></div>
   </main>
@@ -52,6 +54,13 @@
       </div>
       <div id="rMeters"></div>
       <div id="rPack"></div>
+    </section>
+
+    <section id="plan" aria-label="The plan">
+      <div class="plan-head"><span class="title">Plan</span><span id="planGoal"></span></div>
+      <ol id="planTrace"></ol>
+      <div id="planNow"></div>
+      <ol id="planSteps"></ol>
     </section>
 
     <section id="radio" aria-label="Radio">
@@ -99,12 +108,16 @@
 <script src="src/sim/journal.js"></script>
 <script src="src/sim/radio.js"></script>
 <script src="src/sim/chapters.js"></script>
+<script src="src/sim/objectives.js"></script>
 <script src="src/sim/planner.js"></script>
 <script src="src/sim/brain.js"></script>
 <script src="src/sim/sim.js"></script>
 <script src="src/view/fx.js"></script>
 <script src="src/view/render.js"></script>
 <script src="src/view/figures.js"></script>
+<script src="src/view/plans.js"></script>
+<script src="src/view/stores.js"></script>
+<script src="src/view/board.js"></script>
 <script src="src/view/camera.js"></script>
 <script src="src/view/portrait.js"></script>
 <script src="src/view/audio.js"></script>

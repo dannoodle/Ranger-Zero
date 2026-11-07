@@ -37,6 +37,7 @@ var RZ = RZ || {};
   RZ.reinforceCamps = function (sim) {
     var c = sim.cfg.scav;
     sim.camps.forEach(function (camp) {
+      if (camp.cleared) return; // a broken camp stays broken
       var size = sim.scavs.filter(function (s) { return s.camp === camp.id; }).length;
       var cap = camp.picket ? c.picketMax : c.campMax;
       if (size < cap && sim.enemyRng.chance(c.reinforceChance)) addScavenger(sim, camp);

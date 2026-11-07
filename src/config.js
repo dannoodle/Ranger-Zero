@@ -91,7 +91,7 @@ var CFG = {
   },
 
   items: {
-    weights: { food: 1, ammo: 0.05, med: 1, loot: 1, grenade: 1 },
+    weights: { food: 1, ammo: 0.05, med: 1, loot: 1, grenade: 1, relic: 1 },
     foodEnergy: 45,
     medHeal: 40,
     // rank picks the main gun. For each shot a ranger draws whichever carried gun does the most damage
@@ -248,6 +248,7 @@ var CFG = {
         leeway: 0.6,         // how short of stores they'll set out
         ammo: 4,
         forage: 0.7,         // share of a calm spell they'll spend foraging
+        board: { reward: 0.8, danger: 1.6, prefer: { clear: -25, stock: 10 } },  // how they weigh objectives
         heed: { turnback: 35, pushon: -25, warn: 25, send: -10, crate: 10 }
       },
       greedy: {
@@ -259,6 +260,7 @@ var CFG = {
         leeway: 1,
         ammo: 0,
         forage: 1,
+        board: { reward: 1.6, danger: 1, prefer: { retrieve: 10 } },
         heed: { turnback: -5, pushon: 10, warn: 0, send: 30, crate: 30 }
       },
       reckless: {
@@ -270,6 +272,7 @@ var CFG = {
         leeway: 1.5,
         ammo: -4,
         forage: 0.9,
+        board: { reward: 1, danger: 0.5, prefer: { clear: 25, stock: -15 } },
         heed: { turnback: -25, pushon: 35, warn: -15, send: 10, crate: 20 }
       }
     },
@@ -334,7 +337,50 @@ var CFG = {
     mutterEvery: 45
   },
 
+  // The board: what the line is asked to do in each land. See objectives.js.
+  objectives: {
+    survey: 3,               // survey sites on a board, from the land's sites
+    clear: 1,                // camps to break
+    retrieve: 1,             // things to fetch home
+    stock: 1,                // outposts to stock
+    clearMinFromHome: 20,    // in cells; camps nearer home than this aren't worth a board slot
+    clearReach: 5,           // how near the camp's middle a ranger must stand to call it clear
+    clearLinger: 30,         // ticks spent sweeping the huts before calling it
+    ammoPerScav: 6,          // rounds carried for each scavenger the board reports
+    retrieveMinLeg: 45,      // walking cost from the nearest safe house. Nearer than survey sites, because it has to be carried home
+    retrieveMaxLeg: 95,
+    apart: 10,               // in cells; objectives keep at least this far apart
+    stockGoods: { food: 6, ammo: 40, med: 3 },
+    relicWorth: 12,          // a body carrying the relic is worth this much more to recover
+    // How the planner weighs one objective against another. Tempers scale these (see people.tempers).
+    weigh: {
+      reward: 2,             // per point of reward value
+      ready: 40,             // for a staging post with everything the attempt needs
+      walk: 0.5,             // per second from the staging post to the target
+      danger: 12,            // per known camp near the target, more for each that has beaten us
+      stick: 30,             // staying with the current objective, so supplies don't scatter
+      dangerRadius: 14
+    }
+  },
+
+  // What a finished objective leaves behind: a cache at the site, or goods in the outpost's stash.
+  rewards: {
+    base: 4,                 // value points
+    perCell: 0.12,           // for each cell from home
+    perAttempt: 1.5,         // for each attempt it took, up to five
+    typeBonus: { survey: 0, clear: 4, retrieve: 3, stock: -2 },
+    ammoPerPoint: 1.6,
+    foodEvery: 5,            // one food for this many points
+    medEvery: 6,
+    grenadeFrom: 10,         // a grenade in caches worth at least this
+    weaponFrom: 8,           // a chance of a gun from this value up
+    weaponChancePerPoint: 0.06,
+    weaponChanceMax: 0.7,
+    weapons: ['rifle', 'shotgun', 'mp5']
+  },
+
   chapter: {
+    hold: 0,                 // 1 keeps a land until its board is done, however many tides that takes
     tides: 8,                // a greater tide after this many
     seedStep: 1009           // each new land is a new map from the same seed
   },
@@ -346,6 +392,8 @@ var CFG = {
                'Coldwell', 'Staithe', 'Marl', 'Withy', 'Nether Row', 'Kiln Cross', 'Sallow', 'Gorse End', 'Tolling', 'Fenny'],
     sites: ['Signal Stone', 'Old Mast', 'Lantern Rock', 'Drowned Tower', 'Far Cairn', 'Bell Hill', 'The Gauge', 'Weather Post',
             'Hollow Beacon', 'Last Pylon', 'Sister Stones', 'The Sounding', 'Grey Lamp', 'Tally Mound'],
+    relics: ['the seed case', 'the old drone', 'the survey log', 'a water still', 'the mast battery', 'the field radio',
+             'the sample jars', 'the last map', 'a medical chest', 'the tide gauge'],
     first: ['Maren', 'Tobin', 'Ilse', 'Corin', 'Wren', 'Anselm', 'Juno', 'Hale', 'Sorrel', 'Bram', 'Odile', 'Fenn', 'Tamsin',
             'Ivo', 'Nell', 'Rook', 'Sabine', 'Emeka', 'Yara', 'Dov', 'Pilar', 'Kit', 'Lucan', 'Mirren', 'Ansa', 'Teo', 'Hester',
             'Jonah', 'Zofia', 'Ravi', 'Greer', 'Oren', 'Linh', 'Caspar', 'Ada', 'Silas', 'Noor', 'Mateus', 'Bryn', 'Thea',
@@ -380,6 +428,8 @@ var CFG = {
     goldDeep: '#b9882a',
     goldBlobs: 170,
     site: '#a9a595',
+    siteOff: 'rgba(169, 165, 149, 0.4)',  // a survey site that isn't on the board
+    clearMark: '#e4593f',
     siteActive: '#f4efdf',
     labelDim: '#b3ad9b',
     tideDark: [38, 12, 74],
@@ -397,7 +447,7 @@ var CFG = {
     fogRememberedRanger: 0.4,
     fogUnknownDual: 0.5,
     fogRememberedDual: 0.14,
-    itemColors: { food: '#9ccf7a', ammo: '#e0c070', med: '#f08a8a', loot: '#7fc6d8', weapon: '#f4efdf', grenade: '#b8d46a' },
+    itemColors: { food: '#9ccf7a', ammo: '#e0c070', med: '#f08a8a', loot: '#7fc6d8', weapon: '#f4efdf', grenade: '#b8d46a', relic: '#ffd968', crate: '#e8b93a' },
     weaponMarks: { pistol: 'P', rifle: 'R', shotgun: 'S', mp5: 'M' },
     blast: '#ffb347',
     scav: '#e4593f',
@@ -407,6 +457,12 @@ var CFG = {
     rangerEdge: '#20262b',
     rangerGlow: 'rgba(251, 247, 232, 0.16)',
     routeLine: 'rgba(251, 247, 232, 0.5)',
+    planLine: 'rgba(251, 247, 232, 0.32)',   // legs of the plan after the current one
+    planPin: '#f4efdf',
+    planPinLater: '#a9a595',
+    cargo: '#e0c070',
+    storeShort: '#f08a6a',   // a stash count under the planner's target
+    storeWrong: '#cf9bff',   // the journal has this count wrong
     shot: '#ffe9a8',
     labelHalo: 'rgba(8, 12, 15, 0.8)',
     journalLines: 400,

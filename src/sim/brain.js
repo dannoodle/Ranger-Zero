@@ -238,6 +238,21 @@ var RZ = RZ || {};
         act.reply(RZ.answer(r, book, clock, call.topic));
         return;
       }
+      if (type === 'hold' || type === 'release') {
+        if (type === 'hold') act.say('hold_land');
+        else act.say('release_land');
+        return;
+      }
+      if (type === 'board') {
+        // New orders from home. Whatever this trip was for may not be on the board any more.
+        act.say('board_new');
+        r.achieved = null;
+        if (place || (r.plan && r.plan.kind !== 'errand' && r.plan.kind !== 'recover')) {
+          r.plan = null;
+          r.path = null;
+        }
+        return;
+      }
       var heed = RZ.willHeed(r, book, type);
       if (type === 'turnback') {
         if (place) { act.say('turnback_inside'); return; }
@@ -253,7 +268,7 @@ var RZ = RZ || {};
           setPath(r, shelter.place);
         }
       } else if (type === 'pushon') {
-        if (!r.plan || r.plan.kind !== 'survey' || r.plan.at !== 0) { act.say('pushon_nothing'); return; }
+        if (!r.plan || !r.plan.attempt || r.plan.at !== 0) { act.say('pushon_nothing'); return; }
         if (!heed) { act.say('no_pushon'); return; }
         act.say('ack_pushon');
         r.plan.ordered = true;
@@ -418,7 +433,7 @@ var RZ = RZ || {};
 
   // Running from a camp twice on the same trip means there's no way around it. Time to run through.
   function runGauntlet(r, book, clock) {
-    if (!r.plan || r.plan.kind !== 'survey') return false;
+    if (!r.plan || !r.plan.attempt) return false;
     if (r.plan.dash) return true;
     r.plan.fled = (r.plan.fled || 0) + 1;
     if (r.plan.fled <= r.cfg.planner.fleesBeforeDash) return false;
@@ -492,7 +507,7 @@ var RZ = RZ || {};
   // The gamble. With the site this close, a ranger may ignore the clock and go for it. Every
   // turn-back makes the next ranger bolder, and every tide death makes them less so.
   function pushingOn(r, book, clock, act) {
-    if (!r.plan || r.plan.kind !== 'survey' || r.plan.at !== 0) return false;
+    if (!r.plan || !r.plan.attempt || r.plan.at !== 0) return false;
     if (r.plan.ordered) return true;
     var p = r.cfg.planner;
     var toSite = RZ.legSeconds(r, here(r), book.mission);
@@ -523,7 +538,7 @@ var RZ = RZ || {};
     if (r.plan && r.plan.ordered && percept.tide && percept.tide.distance > p.climbWhenTideWithin) return false;
     if (percept.tide && percept.tide.distance < 10) act.say('tide_close');
 
-    if (r.mode !== 'shelter' && r.mode !== 'climb' && r.plan && r.plan.kind === 'survey' && r.plan.at === 0) {
+    if (r.mode !== 'shelter' && r.mode !== 'climb' && r.plan && r.plan.attempt && r.plan.at === 0) {
       var c = r.cfg.lessons;
       book.lessons.nerve = Math.min(c.nerveMax, book.lessons.nerve + c.nerveStep);
       book.lessons.tideMargin = Math.max(c.tideMarginStart, book.lessons.tideMargin - c.tideMarginEase);
@@ -549,7 +564,7 @@ var RZ = RZ || {};
     var cfg = r.cfg;
     var pack = r.pack;
     var spare = r.capacity - RZ.packWeight(cfg, pack);
-    if (item.kind === 'crate') return true;
+    if (item.kind === 'crate' || item.kind === 'relic') return true;
     if (item.kind === 'weapon') {
       return pack.weapons.indexOf(item.weapon) < 0 && cfg.items.weapons[item.weapon].weight <= spare;
     }
@@ -574,6 +589,7 @@ var RZ = RZ || {};
             else if (taken[0] === 'shotgun') act.say('found_shotgun');
             else if (taken[0] === 'mp5') act.say('found_mp5');
             else if (/grenade/.test(taken[0])) act.say('found_grenade', { what: taken[0] });
+            else if (taken[0] === 'relic') noteRelic(r, book, act, clock);
             else if (taken[0] === 'a crate') {
               act.say('crate_got');
               RZ.judgeZero(book, r.cfg, clock, true, 2, null);
@@ -614,20 +630,46 @@ var RZ = RZ || {};
     return distance(step, r) <= step.near;
   }
 
-  function finishSurvey(r, book, act, clock) {
-    var mission = book.mission;
-    var spent = clock.tick - mission.startTick;
-    act.say('triumph', { site: mission.name });
-    act.deed('surveyed ' + mission.name);
-    act.missionDone();
-    RZ.writeEntry(book, clock, 'triumph', RZ.lead(r) + mission.name + ' surveyed and home safe. It took ' +
-      mission.attempts + (mission.attempts === 1 ? ' attempt' : ' attempts') + ' and ' + RZ.tideSpan(r.cfg, spent) + '.');
+  var DEEDS = { survey: 'surveyed ', clear: 'broke the camp at ', retrieve: 'brought home ', stock: 'stocked ' };
+
+  function doneText(o) {
+    if (o.type === 'clear') return 'The camp at ' + o.name + ' is broken, and I\'m home safe.';
+    if (o.type === 'retrieve') return 'Brought ' + o.name + ' home.';
+    if (o.type === 'stock') return o.name + ' holds what the board asked for.';
+    return o.name + ' surveyed and home safe.';
+  }
+
+  // An objective is finished: the journal ticks it off and home posts the reward.
+  RZ.completeObjective = function (r, book, act, clock, o) {
+    r.achieved = null;
+    if (!o || o.done) return false;
+    var spent = clock.tick - (o.startTick === undefined ? clock.tick : o.startTick);
+    var tries = o.type === 'stock' ? (o.attempts === 1 ? ' load' : ' loads') : (o.attempts === 1 ? ' attempt' : ' attempts');
+    RZ.writeEntry(book, clock, 'triumph', RZ.lead(r) + doneText(o) + ' It took ' + Math.max(1, o.attempts) + tries +
+      ' and ' + RZ.tideSpan(r.cfg, spent) + '.');
+    act.say('triumph', { site: o.name });
+    act.deed(DEEDS[o.type] + o.name);
+    act.missionDone(o.id);
     if (r.orderedOn) {
       RZ.judgeZero(book, r.cfg, clock, true, r.cfg.radio.trustPushWin, 'Zero told ' + r.first + ' to push on, and ' + r.first + ' came back with it. Zero was right.');
       r.orderedOn = false;
     }
-    act.nextMission();
-    r.surveyed = null;
+    return true;
+  };
+
+  // The hard part is done. The journal's checklist ticks it straight away.
+  function reached(o) {
+    o.reached = true;
+    o.checks.forEach(function (check) { if (check.step === 'reach') check.done = true; });
+  }
+
+  function noteRelic(r, book, act, clock) {
+    var o = null;
+    book.objectives.forEach(function (objective) { if (objective.type === 'retrieve' && !objective.done) o = objective; });
+    if (!o || o.reached) return;
+    reached(o);
+    act.say('relic_got', { site: o.name });
+    RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'Got ' + o.name + '. Now it has to come home in one piece.');
   }
 
   function followPlan(r, book, place, act, clock) {
@@ -663,10 +705,36 @@ var RZ = RZ || {};
         continue;
       }
       if (step.do === 'survey') {
-        if (act.survey()) {
-          r.surveyed = book.mission.id;
+        if (act.survey(book.mission.id)) {
+          r.achieved = book.mission.id;
+          reached(book.mission);
           act.say('reached');
           RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'Reached ' + book.mission.name + '. Now to get back with it.');
+        }
+        r.plan.at++;
+        continue;
+      }
+      if (step.do === 'clear') {
+        // Nobody in sight after a sweep of the huts. Is it really over?
+        if (act.clearCamp(book.mission.id)) {
+          r.achieved = book.mission.id;
+          reached(book.mission);
+          act.say('cleared', { site: book.mission.name });
+          RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'Nobody left standing at ' + book.mission.name + '. Now home to say so.');
+        } else {
+          act.say('not_cleared', { site: book.mission.name });
+          RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'Still someone at ' + book.mission.name + ' I can\'t find. It isn\'t finished.');
+        }
+        r.plan.at++;
+        continue;
+      }
+      if (step.do === 'take') {
+        act.pickUp();
+        act.equipBest();
+        if (r.pack.relic > 0) noteRelic(r, book, act, clock);
+        else {
+          act.say('relic_missing', { site: book.mission.name });
+          RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'The board says ' + book.mission.name + ' is here. It isn\'t.');
         }
         r.plan.at++;
         continue;
@@ -740,7 +808,7 @@ var RZ = RZ || {};
     if (place) {
       arriveSafe(r, book, place, act, percept, clock);
       if (act.stashHere()) book.stashes[place.id] = act.stashHere();
-      if (r.surveyed) finishSurvey(r, book, act, clock);
+      if (r.achieved) RZ.completeObjective(r, book, act, clock, RZ.bookObjective(book, r.achieved));
       if (r.mode === 'shelter' || r.mode === 'climb') {
         r.mode = 'plan';
         r.path = null;

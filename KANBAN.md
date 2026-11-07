@@ -12,7 +12,7 @@ An autonomous top-down survival sim. See [docs/concept.md](docs/concept.md) for 
 - **Moving a card:** cut the line and paste it into the new column. When it reaches Done, tick the box and add the date: `- [x] R-001 Short description (2026-11-06)`.
 - **Done** stays on this board until it gets long, then older cards move to `KANBAN-archive.md`.
 
-**Next ID:** R-062
+**Next ID:** R-079
 
 ---
 
@@ -39,12 +39,38 @@ One map, home plus three outposts, one long Survey mission, scavengers, one anom
 ### From the radio build
 
 - [ ] R-052 Choose the next mission: click a survey site to send the line there
+  Once R-067 is built, this becomes pinning an objective on the board.
 - [ ] R-053 Save and resume: a run is just its seed and call log, so it could live in the URL or local storage, and be shared
 - [ ] R-054 Hidden threat alerts for camps, not only pockets
 - [ ] R-055 Watch for old selves camping an outpost: seed 7 lost 8 rangers to them in a row, which may be a great story or a death spiral
 - [ ] R-057 Rangers don't know a greater tide is coming. Could the journal learn to count tides after the first one?
 - [ ] R-058 Let the ranger reply to questions with their portrait on the map at close zoom, or some other way of making talk feel closer
 - [ ] R-059 A morning summary: what happened while the run was left going
+
+### Objectives and readable plans (agreed 2026-11-07)
+
+Watching a plan form and unfold is most of the fun, so make the plan readable, give each land a board of objectives, and give supplies and loot a strategy. Build in phase order. Run `tools/batch.js` before and after each phase and note the numbers on the card. Balance is fine as it is, so a big swing is a bug, not a tuning job.
+
+Phase A: show the plan. Behaviour must not change, and `tools/checks.js` fingerprints must stay identical.
+
+
+Phase B: objectives, rewards and switches.
+
+
+Phase C: supply and looting strategy.
+
+- [ ] R-072 Outpost roles: staging, waystation or reserve (a spare life), each with its own stock target, shown in R-065
+- [ ] R-073 Hauling picks the haul that closes the biggest gap per second walked, with drops at waystations on the way
+- [ ] R-074 Village memory: last yield, camp seen and when it was last searched. Scavenge and forage targets are chosen by expected value against risk, and the panel shows the sum.
+- R-024 (the trader, below) belongs to this phase as a small version: sell loot at home, buy gear. It gives looting a value.
+
+### From the board
+
+- [ ] R-075 Balance after the board: survey median attempts fell from 2 to 1, and deaths from 175 to 141 (scavengers 59 to 34)
+  Not the rewards: with rewards switched off it's the same (median 1, 130 deaths). The planner now works on whichever objective is readiest, so attempts go into objectives the line is prepared for. Levers: `objectives.weigh.ready` and `stick`, survey site distance, or more tides of danger. Or accept it, since the challenge has moved to finishing the board (see R-076).
+- [ ] R-076 Boards are rarely finished before the greater tide: 2 of 100 lands at 8 tides with six objectives. Smaller boards, more tides, or leave it to the hold switch.
+- [ ] R-077 A new board can't offer new survey sites, because a land only has three. Should a new board be able to place fresh sites?
+- [ ] R-078 "Scavengers camped at X" is sometimes written twice for the same village a few seconds apart (seeds 3 and 5). Not yet checked whether this predates the board.
 
 ### From the new weapons
 
@@ -56,8 +82,10 @@ One map, home plus three outposts, one long Survey mission, scavengers, one anom
 - [ ] R-019 Notes fade with each tide, shown as fading ink on the map
 - [ ] R-021 Worn routes: the tide spreads fastest along paths rangers use often
 - [ ] R-022 Retrieve and Clear missions
+  Folded into R-066.
 - [ ] R-023 Husks: unarmed, mould-taken enemies that chase on contact
 - [ ] R-024 Trader at home: sell loot, buy gear with credits
+  Part of the objectives work, Phase C: a small version that gives looting a value.
 - [ ] R-027 Live config sliders on screen (undecided: the config file may be enough)
 
 ## Done
@@ -109,3 +137,15 @@ One map, home plus three outposts, one long Survey mission, scavengers, one anom
 - [x] R-056 Attempts against the brief's target of 3: first missions now take a median of 3, so nothing to change (2026-11-07)
 - [x] R-060 More weapons to find: shotgun, MP5 and grenades (2026-11-07)
   Rangers draw whichever carried gun suits the distance, and throw grenades at groups or when a fight is lost. Old selves use their grenades too. Also fixed rangers hoarding spare pistols from stashes.
+- [x] R-062 Planner decision trace: `makePlan` records each question it asks, the answer and the numbers on `r.plan.trace`. Nothing reads it back. (2026-11-07)
+- [x] R-063 Checklist panel: the objective, ticked and unticked prerequisites with counts, the current task and why, all read from the trace (2026-11-07)
+- [x] R-064 The plan on the map: dotted route through the remaining steps, numbered pins, a flag on the staging post, and cargo chips on haul trips (2026-11-07)
+- [x] R-065 Outpost stores on the map: an icon row under each outpost with counts against the planner's targets. The ranger view shows the journal's ledger. Full and dual views show the truth and flag mismatches. Click an outpost for its full contents. (2026-11-07)
+  Phase A changed no behaviour: fingerprints for 10 seeds, with and without radio calls, match the build before it.
+- [x] R-066 Objectives board for each land: Survey, Stock (X goods into a named outpost), Clear (camp at a named village) and Retrieve (fetch a marked item home). The journal holds a copy. Every objective must pass the routes check before it goes on the board. Covers R-022. (2026-11-07)
+- [x] R-067 The planner chooses between open objectives by readiness, walking time, known danger and reward, with temper changing the weights. The panel shows the ranked list. (2026-11-07)
+- [x] R-068 Checklists live in the journal, so the next ranger picks up the ticked boxes (2026-11-07)
+- [x] R-069 Reward cache at the site when an objective is completed, on its own seeded stream and scaled by distance and attempts. It may hold weapons. The tide digests whatever isn't carried home. (2026-11-07)
+- [x] R-070 Hold the land switch: no greater tide until every objective is done. It's a logged radio call and also `?chapter.hold=1`. The tide counter keeps counting. (2026-11-07)
+- [x] R-071 New objectives switch: reroll the board for this land as a logged call. Stashes stay, and progress on the old objectives is dropped. (2026-11-07)
+  Phase B batch, 20 seeds, about 883 tides each way: 233 objectives done against 109 surveys before (88 survey, 48 clear, 64 retrieve, 33 stock), 141 deaths against 175, survey median attempts 1 against 2. See R-075.

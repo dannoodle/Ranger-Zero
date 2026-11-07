@@ -17,7 +17,10 @@ var RZ = RZ || {};
     how: 'How are you holding up?',
     plan: 'What\'s the plan?',
     know: 'What do you know?',
-    zero: 'Do you trust me?'
+    zero: 'Do you trust me?',
+    hold: 'We\'re staying in this land until the board is done.',
+    release: 'The land goes when the tides say it goes.',
+    board: 'Scrap the board. New orders coming through.'
   };
 
   RZ.callCost = function (cfg, type) {
@@ -61,6 +64,23 @@ var RZ = RZ || {};
     sim.callLog.push(Object.assign({ tick: sim.tick }, call));
     if (call.type === 'recruit') {
       RZ.chooseRecruit(sim, call.pick);
+      return;
+    }
+    // The two switches on the board cost nothing, and work whether or not anyone is out there.
+    if (call.type === 'hold') {
+      if (sim.hold === !!call.on) return;
+      sim.hold = !!call.on;
+      RZ.addTalk(sim, 'zero', SAYS[sim.hold ? 'hold' : 'release'], 'Zero');
+      RZ.writeEntry(sim.book, { tick: sim.tick }, 'chapter', sim.hold
+        ? 'Zero is holding this land. No greater tide until the board is done.'
+        : 'Zero let go of this land. The greater tide comes when it comes.');
+      if (sim.ranger.alive) sim.ranger.inbox.push({ type: sim.hold ? 'hold' : 'release' });
+      return;
+    }
+    if (call.type === 'board') {
+      RZ.addTalk(sim, 'zero', SAYS.board, 'Zero');
+      RZ.newBoard(sim);
+      if (sim.ranger.alive) sim.ranger.inbox.push({ type: 'board' });
       return;
     }
     if (!RZ.canCall(sim, call.type)) return;
