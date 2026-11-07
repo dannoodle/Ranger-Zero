@@ -19,7 +19,7 @@ An autonomous top-down survival sim. See [docs/concept.md](docs/concept.md) for 
 ## In Progress
 
 - [ ] R-102 Phone: the land layer shows black on Android Chrome
-  The offscreen land canvas is drawn once per map, and Android Chrome can wipe GPU canvases or fail to give one this big. The renderer now checks a pixel of it every `look.layerCheckSeconds` and on returning to the page, rebuilds it when wiped, and steps its resolution down when a canvas won't allocate. Tested by wiping it and by forcing an oversized one in desktop Chrome. Waiting on a check on a real phone.
+  The offscreen land canvas is drawn once per map, and Android Chrome can wipe GPU canvases or fail to give one this big. The renderer checks a pixel of it every `look.layerCheckSeconds` and on returning to the page, rebuilds it when wiped (at most `look.layerRepairs` times a map), and steps its resolution down when a canvas won't allocate. A 1-pixel-a-cell ground colour is drawn under it every frame, so the land's colours show even if it fails. The first try (e67d471) froze the phone: a rebuild takes 150ms on a desktop and it could repeat forever, so now it's bounded, and it skips checks when the browser hides canvas pixels. `?look.diag=1` prints the layer's state on the map. Waiting on a phone screenshot with it.
 
 ## Ready
 

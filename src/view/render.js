@@ -49,7 +49,9 @@ var RZ = RZ || {};
     return field;
   }
 
-  function drawTint(ctx, world, look, px) {
+  // The ground colour at one pixel a cell. Small enough that no browser fails to make it, so it's
+  // also drawn under the land layer every frame, in case that layer is ever missing.
+  function buildTint(world, look) {
     var image = new ImageData(world.w, world.h);
     for (var i = 0; i < world.elev.length; i++) {
       var rgb = tintFor(look, world.elev[i]);
@@ -64,9 +66,13 @@ var RZ = RZ || {};
     small.width = world.w;
     small.height = world.h;
     small.getContext('2d').putImageData(image, 0, 0);
+    return small;
+  }
+
+  function drawTint(ctx, tint, world, px) {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(small, 0, 0, world.w * px, world.h * px);
+    ctx.drawImage(tint, 0, 0, world.w * px, world.h * px);
   }
 
   // Marching squares over the smoothed elevation.
@@ -172,13 +178,14 @@ var RZ = RZ || {};
   }
 
   // The land never changes, so it's drawn once into its own canvas.
-  function buildBase(world, cfg, px) {
+  function buildBase(world, cfg, px, tint) {
     var look = cfg.look;
     var canvas = document.createElement('canvas');
     canvas.width = world.w * px;
     canvas.height = world.h * px;
     var ctx = canvas.getContext('2d');
-    drawTint(ctx, world, look, px);
+    if (!ctx) return canvas;   // a canvas the browser couldn't make; buildLayers steps down
+    drawTint(ctx, tint, world, px);
     drawContours(ctx, world, smoothField(world, 2), look, px);
     drawShore(ctx, world, look, px);
     drawTrees(ctx, world, look, px);
@@ -278,14 +285,45 @@ var RZ = RZ || {};
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) self.layerCheck = Infinity;
     });
+    // With ?look.diag=1, an error that stops the frame loop still shows, in the hint under the map.
+    window.addEventListener('error', function (event) {
+      RZ.lastError = event.message + ' @' + (event.filename || '').split('/').pop() + ':' + event.lineno;
+      var hint = document.getElementById('mapHint');
+      if (self.look.diag && hint) {
+        hint.textContent = RZ.lastError;
+        hint.className = 'show';
+      }
+    });
   }
 
   // The land layer is opaque everywhere, so a clear pixel in its middle means it was never drawn or
   // has been wiped. Android Chrome wipes GPU canvases when it frees memory, such as when the phone
   // sleeps or the tab is in the background.
-  function isBlank(canvas) {
+  // Whether this browser gives back what was drawn. Some hide canvas pixels, which would make every
+  // layer look blank, so without this the land would be rebuilt forever.
+  var readback = null;
+  function canReadBack() {
+    if (readback !== null) return readback;
     try {
-      return canvas.getContext('2d').getImageData(canvas.width >> 1, canvas.height >> 1, 1, 1).data[3] === 0;
+      var probe = document.createElement('canvas');
+      probe.width = 1;
+      probe.height = 1;
+      var ctx = probe.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 1, 1);
+      readback = ctx.getImageData(0, 0, 1, 1).data[3] === 255;
+    } catch (error) {
+      readback = false;
+    }
+    return readback;
+  }
+
+  function isBlank(canvas) {
+    if (!canReadBack()) return false;
+    try {
+      var ctx = canvas.getContext('2d');
+      if (!ctx) return true;
+      return ctx.getImageData(canvas.width >> 1, canvas.height >> 1, 1, 1).data[3] === 0;
     } catch (error) {
       return false;
     }
@@ -293,13 +331,16 @@ var RZ = RZ || {};
 
   function isLost(canvas) {
     var ctx = canvas.getContext('2d');
+    if (!ctx) return true;
     return !!(ctx.isContextLost && ctx.isContextLost());
   }
 
-  // Look at the land layer now and then, and as soon as the page comes back into view.
+  // Look at the land layer now and then, and as soon as the page comes back into view. Rebuilding is
+  // slow on a phone, so it's tried only a few times for each map, never every frame.
   Renderer.prototype.checkLayers = function (dt) {
+    if (this.repairs >= (this.look.layerRepairs || 0)) return;
     this.layerCheck = (this.layerCheck || 0) + (dt || 0);
-    if (this.layerCheck < this.look.layerCheckSeconds) return;
+    if (this.layerCheck < (this.look.layerCheckSeconds || 2)) return;
     this.layerCheck = 0;
     if (!this.base || !isBlank(this.base)) {
       this.lostChecks = 0;
@@ -318,24 +359,62 @@ var RZ = RZ || {};
   // if the browser throws them away.
   Renderer.prototype.buildLayers = function () {
     var sim = this.sim;
-    if (this.builtFor === sim.world && !this.layersLost) return;
+    var fresh = this.builtFor !== sim.world;
+    if (!fresh && !this.layersLost) return;
+    this.repairs = fresh ? 0 : (this.repairs || 0) + 1;
     this.builtFor = sim.world;
     this.layersLost = false;
+    var started = performance.now();
     // Give the old layers' memory back now rather than at the next collection: phones run short.
     if (this.base) this.base.width = 0;
     if (this.gold) this.gold.width = 0;
+    if (fresh || !this.tint) this.tint = buildTint(sim.world, this.look);
     var px = this.look.basePixelsPerCell;
-    this.base = buildBase(sim.world, sim.cfg, px);
+    this.base = buildBase(sim.world, sim.cfg, px, this.tint);
     // A phone that can't give a canvas this big leaves it blank (Chrome calls it lost), so step down
     // until one takes.
     while (px > 4 && isBlank(this.base)) {
       this.base.width = 0;
       px /= 2;
-      this.base = buildBase(sim.world, sim.cfg, px);
+      this.base = buildBase(sim.world, sim.cfg, px, this.tint);
     }
     this.gold = buildGoldRings(sim.world, sim.cfg, px);
+    this.layerInfo = {
+      px: px,
+      size: this.base.width + 'x' + this.base.height,
+      ms: Math.round(performance.now() - started),
+      blank: isBlank(this.base),
+      lost: isLost(this.base)
+    };
     this.frontSource = null;
     this.fogStamp = -1;
+  };
+
+  // ?look.diag=1 prints what the browser says about the land layer, to debug a phone from a screenshot.
+  Renderer.prototype.drawDiag = function () {
+    if (!this.look.diag) return;
+    var ctx = this.ctx;
+    var info = this.layerInfo || {};
+    var lines = [
+      'land ' + info.size + ' at ' + info.px + '/cell, built in ' + info.ms + 'ms',
+      'blank ' + info.blank + ', lost ' + info.lost + ', now blank ' + isBlank(this.base) + ', repairs ' + (this.repairs || 0),
+      'readback ' + canReadBack() + ', dpr ' + this.dpr + ', canvas ' + this.width + 'x' + this.height,
+      'scale ' + this.scale.toFixed(1) + ', zoom power ' + (this.zoomPower || 1).toFixed(2),
+      'error ' + (RZ.lastError || 'none'),
+      navigator.userAgent
+    ];
+    var size = 11 * this.dpr;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.font = size + 'px Consolas, Menlo, monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    var top = 120 * this.dpr;
+    ctx.fillRect(0, top, this.width, (lines.length + 0.6) * size * 1.3);
+    ctx.fillStyle = '#ffe08a';
+    for (var i = 0; i < lines.length; i++) ctx.fillText(lines[i], 6 * this.dpr, top + (i + 1) * size * 1.3, this.width - 12 * this.dpr);
+    ctx.restore();
   };
 
   Renderer.prototype.fit = function () {
@@ -737,6 +816,7 @@ var RZ = RZ || {};
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(this.tint, this.originX, this.originY, world.w * this.scale, world.h * this.scale);
     ctx.drawImage(this.base, this.originX, this.originY, world.w * this.scale, world.h * this.scale);
     this.drawFog();
     this.drawTide();
@@ -761,6 +841,7 @@ var RZ = RZ || {};
     this.fx.draw(dt);
     this.drawSpeech(dt);
     this.drawMood();
+    this.drawDiag();
   };
 
   RZ.Renderer = Renderer;

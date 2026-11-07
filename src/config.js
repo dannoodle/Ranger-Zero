@@ -467,6 +467,8 @@ var CFG = {
   look: {
     basePixelsPerCell: 16,
     layerCheckSeconds: 2,      // how often to check the browser hasn't wiped the land layer
+    layerRepairs: 2,           // rebuilds allowed for each map; each one is slow on a phone
+    diag: 0,                   // 1 prints the land layer's state on the map, for debugging a phone
     background: '#0c1115',
     tint: ['#16201f', '#1b2622', '#232c25', '#2e332a', '#3b3b30', '#4a4639', '#5a5546'],
     shallow: '#1b3a4b',
