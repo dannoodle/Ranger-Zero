@@ -162,6 +162,18 @@ var RZ = RZ || {};
     });
   };
 
+  // Where a gun a ranger picks up would go: into the pack if it adds something and fits, or else into
+  // the spare slot, which carries one gun of any weight on the way to the next gold. Not a pistol: there
+  // are pistols in every stash already. Null if it goes nowhere.
+  RZ.slotFor = function (cfg, r, name) {
+    var gun = cfg.items.weapons[name];
+    var free = r.capacity - RZ.packWeight(cfg, r.pack);
+    var adds = r.pack.weapons.indexOf(name) < 0 && RZ.spareGuns(cfg, r.pack.weapons.concat([name])).indexOf(name) < 0;
+    if (adds && gun.weight <= free) return 'pack';
+    if (!r.spare && name !== 'pistol') return 'spare';
+    return null;
+  };
+
   // Worth leaving loot or spare rounds behind for. So is a better gun.
   RZ.MAKES_ROOM = { food: true, med: true, grenade: true };
 
@@ -240,9 +252,15 @@ var RZ = RZ || {};
         return false;
       }
       if (item.kind === 'weapon') {
-        if (r.pack.weapons.indexOf(item.weapon) >= 0 || cfg.items.weapons[item.weapon].weight > spare) return true;
-        r.pack.weapons.push(item.weapon);
-        taken.push(item.weapon);
+        var slot = RZ.slotFor(cfg, r, item.weapon);
+        if (!slot) return true;
+        if (slot === 'pack') {
+          r.pack.weapons.push(item.weapon);
+          taken.push(item.weapon);
+        } else {
+          r.spare = item.weapon;
+          taken.push('a spare ' + item.weapon);
+        }
         return false;
       }
       // A ranger always makes room for a relic.

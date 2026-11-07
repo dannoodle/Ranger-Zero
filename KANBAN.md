@@ -12,7 +12,7 @@ An autonomous top-down survival sim. See [docs/concept.md](docs/concept.md) for 
 - **Moving a card:** cut the line and paste it into the new column. When it reaches Done, tick the box and add the date: `- [x] R-001 Short description (2026-11-06)`.
 - **Done** stays on this board until it gets long, then older cards move to `KANBAN-archive.md`.
 
-**Next ID:** R-086
+**Next ID:** R-088
 
 ---
 
@@ -96,6 +96,12 @@ Phase C: supply and looting strategy.
   The calm slider (R-079) is the first. Others only if a value turns out to be worth changing while watching.
 
 ## Done
+
+- [x] R-086 A spare weapon slot: rangers pick up any gun but a pistol and leave it at the next gold they reach, so stashes fill with better guns over time (2026-11-07)
+  The slot carries one gun outside the weight limit. Guns are worth going 1.6 times further for. A ranger at a stash takes the best gun there and leaves any carried gun another beats at every distance, so a pistol stays behind once there's a rifle. Rangers carrying a rifle as their main gun, 6 seeds: 25% in tides 0 to 9 rising to 95% by tides 20 to 29, against 25% to 28% before.
+- [x] R-087 Grenades get used: they reach as far as fights happen, go at a lone enemy when there are plenty, and are taken from stashes for attempts (2026-11-07)
+  Range 7 to 10. With two or more, a lone enemy is worth one; the last is kept for a group or a losing fight. Home starts with 3 and gets 1 a tide, and attempts take 2 (3 to break a camp). Ranger throws in 6 seeds of 30 tides: 17 to 33. Most fights still find a ranger without one, since short trips don't take any.
+  Batch with R-086, 20 seeds, same sim time: deaths 141 to 119 (tide 18 to 8, scavengers 37 to 31), objectives 363 to 343, boards finished 15 of 81 to 10 of 80.
 
 - [x] R-079 Longer calm by default, and a tide length slider that changes it as a logged call (2026-11-07)
   Calm 110s to 150s, and the first guess 95s to 130s. The slider runs from 60s to 300s, stretches a calm already under way, and is logged like the board switches. Rangers aren't told: the journal learns it by timing tides.

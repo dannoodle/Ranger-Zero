@@ -437,11 +437,13 @@ var RZ = RZ || {};
     return best;
   }
 
-  // A grenade goes at a group, or at anyone at all when the fight is going badly.
+  // A grenade goes at a group, at anyone at all when the fight is going badly, and at anyone when
+  // there are plenty more in the pack.
   function tryGrenade(r, enemies, act, desperate) {
     if (!r.pack.grenade || r.cool > 0) return false;
+    var g = r.cfg.items.grenade;
     var spot = grenadeTarget(r, enemies);
-    if (!spot || (spot.caught < r.cfg.items.grenade.minTargets && !desperate)) return false;
+    if (!spot || (spot.caught < g.minTargets && !desperate && r.pack.grenade < g.plenty)) return false;
     act.say('grenade'); // shouted before it lands, and the target was checked above
     return act.throwGrenade(spot.x, spot.y);
   }
@@ -607,6 +609,8 @@ var RZ = RZ || {};
     var room = spare + RZ.roomToMake(cfg, pack, keepRounds(r));
     if (item.kind === 'weapon') {
       var gun = cfg.items.weapons[item.weapon];
+      // The spare slot takes anything but a pistol, to leave at the next gold.
+      if (!r.spare && item.weapon !== 'pistol') return true;
       if (pack.weapons.indexOf(item.weapon) >= 0) return false;
       if (RZ.spareGuns(cfg, pack.weapons.concat([item.weapon])).indexOf(item.weapon) >= 0) return false;
       // A gun no better than one carried is only worth room that's free already.
@@ -643,6 +647,7 @@ var RZ = RZ || {};
             if (taken[0] === 'rifle') act.say('found_rifle');
             else if (taken[0] === 'shotgun') act.say('found_shotgun');
             else if (taken[0] === 'mp5') act.say('found_mp5');
+            else if (/^a spare /.test(taken[0])) act.say('found_spare', { what: taken[0].slice(8) });
             else if (/grenade/.test(taken[0])) act.say('found_grenade', { what: taken[0] });
             else if (taken[0] === 'relic') noteRelic(r, book, act, clock);
             else if (taken[0] === 'a crate') {
@@ -670,13 +675,15 @@ var RZ = RZ || {};
       return setPath(r, r.grab);
     }
     var best = null;
-    var near = p.grabRange * r.temper.grabRange;
+    var reach = p.grabRange * r.temper.grabRange;
+    var nearest = Infinity;
     percept.items.forEach(function (item) {
       var d = distance(item, r);
-      if (d <= near && worthGrabbing(r, item)) {
-        near = d;
-        best = item;
-      }
+      // A gun is worth going further for.
+      if (d > reach * (item.kind === 'weapon' ? p.gunGrabReach : 1) || d >= nearest) return;
+      if (!worthGrabbing(r, item)) return;
+      nearest = d;
+      best = item;
     });
     if (!best || !detourFits(r, book, clock, best, shelter)) return false;
     r.grab = { x: best.x, y: best.y };
@@ -866,6 +873,11 @@ var RZ = RZ || {};
     if (place) {
       arriveSafe(r, book, place, act, percept, clock);
       survivedTide(r, book, place, clock);
+      var leftGun = act.stashSpare();
+      if (leftGun) {
+        act.say('spare_left', { what: leftGun, place: place.name });
+        RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'Left a ' + leftGun + ' at ' + place.name + ' for whoever comes through.');
+      }
       if (act.stashHere()) book.stashes[place.id] = act.stashHere();
       if (r.achieved) RZ.completeObjective(r, book, act, clock, RZ.bookObjective(book, r.achieved));
       r.sheltering = false;

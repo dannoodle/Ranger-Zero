@@ -201,6 +201,11 @@ var RZ = RZ || {};
       greedy: ['Oh, lovely. {what}.', 'Mine now. {what}.'],
       cautious: ['{what}. That\'ll help.']
     },
+    found_spare: {
+      any: ['A {what}. Not for me, but someone back at the gold will want it.', 'Taking the {what} along. It can wait in a stash.'],
+      greedy: ['A {what}! Nobody leaves a {what} lying about.']
+    },
+    spare_left: { any: ['Leaving the {what} here. Someone will be glad of it.', 'One {what}, for the stash.'] },
     found_rifle: { any: ['A rifle! Someone\'s day went badly.', 'Now that\'s a proper gun.'] },
     found_shotgun: {
       any: ['A shotgun. Nobody gets close now.', 'Shotgun. Heavy, but I\'ll take it.'],

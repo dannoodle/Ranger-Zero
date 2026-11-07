@@ -135,6 +135,8 @@ The batch, 20 seeds and 60 rangers over the same sim time:
 
 The fixes on their own cost fewer lives and finish more. The longer calm finishes more again and lets boards be done before the greater tide, but each tide is longer, so more walking happens per tide and more of it ends in a pocket (R-084).
 
+Then guns and grenades (R-086, R-087). A ranger has a spare slot that carries one gun, of any weight, to the next gold, where it's left in the stash. A ranger at a stash takes the best gun there and leaves behind any gun another carried gun beats at every distance. By the later tides of a run nearly every ranger carries a rifle. Grenades reach 10 cells, not 7, home keeps a few, and attempts take two. Throws doubled. Over the same batch, deaths fell from 141 to 119 and objectives from 363 to 343.
+
 ## Rules this has to keep
 
 - Sim code stays free of the DOM, and ranger logic still never sees the sim.

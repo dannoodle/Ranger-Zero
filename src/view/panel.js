@@ -93,7 +93,7 @@ var RZ = RZ || {};
     }
     byId('rMeters').innerHTML = html;
     byId('rPack').textContent = r.alive
-      ? (r.pack.weapons.length ? r.pack.weapons.join(' + ') : 'unarmed') + ', ' + r.pack.ammo + ' rounds, ' +
+      ? (r.pack.weapons.length ? r.pack.weapons.join(' + ') : 'unarmed') + (r.spare ? ' (spare ' + r.spare + ')' : '') + ', ' + r.pack.ammo + ' rounds, ' +
         (r.pack.grenade ? r.pack.grenade + (r.pack.grenade === 1 ? ' grenade, ' : ' grenades, ') : '') +
         r.pack.food + ' food, ' + r.pack.med + ' med'
       : '';

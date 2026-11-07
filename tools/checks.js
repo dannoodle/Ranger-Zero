@@ -226,6 +226,24 @@ section('Picking things up', () => {
   check('by leaving the spare pistol, not rounds', r.pack.weapons.join() === 'rifle' && r.pack.ammo === 40 &&
     sim.items.length === items + 1 && sim.items[sim.items.length - 1].weapon === 'pistol');
   check('never over capacity', RZ.packWeight(CFG, r.pack) <= r.capacity + 1e-9);
+  r.pack = Object.assign(RZ.emptyPack(), { ammo: 40, weapons: ['rifle'] });
+  r.pack.food = Math.floor(r.capacity - RZ.packWeight(CFG, r.pack));
+  r.weapon = 'rifle';
+  r.spare = null;
+  RZ.addItem(sim, at.x, at.y, 'weapon', 1, 'shotgun');
+  RZ.pickUp(sim, r);
+  check('a gun that doesn\'t fit goes in the spare slot', r.spare === 'shotgun' && r.pack.weapons.join() === 'rifle');
+  const gunsHere = () => sim.items.filter(i => i.x === at.x && i.y === at.y && i.kind === 'weapon').length;
+  const lying = gunsHere();
+  RZ.addItem(sim, at.x, at.y, 'weapon', 1, 'mp5');
+  RZ.addItem(sim, at.x, at.y, 'weapon', 1, 'pistol');
+  RZ.pickUp(sim, r);
+  check('one spare only, and never a pistol', r.spare === 'shotgun' && gunsHere() === lying + 2);
+  const home = sim.world.home;
+  r.x = r.fromX = home.x;
+  r.y = r.fromY = home.y;
+  const guns = sim.stashes.home.weapons.length;
+  check('the spare is left at the next gold', sim.actions.stashSpare() === 'shotgun' && r.spare === null && sim.stashes.home.weapons.length === guns + 1);
   check('a rifle makes a pistol spare, a shotgun is never spare', RZ.spareGuns(CFG, ['pistol', 'rifle']).join() === 'pistol' &&
     RZ.spareGuns(CFG, ['shotgun', 'rifle', 'mp5']).length === 0);
 });

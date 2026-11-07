@@ -115,7 +115,7 @@ var CFG = {
     },
     // Thrown, so no line of fire is needed, but the target cell must be in sight. Lands up to a cell off.
     grenade: {
-      range: 7,
+      range: 10,
       minRange: 4,             // won't throw closer than this, which keeps the thrower out of the blast
       radius: 2.5,             // blast reach in cells; damage fades towards the edge
       damageMin: 30,
@@ -123,11 +123,12 @@ var CFG = {
       scatter: 0.35,           // chance it lands a cell off
       reload: 1.8,             // seconds before the thrower can act again
       minTargets: 2,           // a group worth a grenade; one will do when the fight looks lost
+      plenty: 2,               // carrying this many, one enemy is worth a grenade too
       alert: 12                // scavengers this close hear the blast
     },
     freeKit: { food: 2, ammo: 14, med: 1, weapon: 'pistol' },
-    homeStart: { food: 12, ammo: 100, med: 4 },
-    homeRation: { food: 2, ammo: 10, med: 1 },  // arrives after each tide
+    homeStart: { food: 12, ammo: 100, med: 4, grenade: 3 },
+    homeRation: { food: 2, ammo: 10, med: 1, grenade: 1 },  // arrives after each tide
     villageFinds: 2,         // salvage per village per tide
     scatterFinds: 5,         // salvage in the open per tide
     finds: {
@@ -221,7 +222,9 @@ var CFG = {
     climbWhenTideWithin: 6,
     climbWhenShelterBeyond: 12,
     grabRange: 8,            // cells; anything nearer is worth picking up, if the detour still beats the tide
-    keepRounds: 30,          // never leaves rounds below this to make room for something better
+    keepRounds: 30,
+    gunGrabReach: 1.6,       // guns are worth going this much further for than anything else
+    grenades: 2,             // taken from a stash for an attempt, one more for breaking a camp          // never leaves rounds below this to make room for something better
     bodyRange: 14,           // how far off the road a ranger will go for a body in view
     forageMinimum: 26,       // the least time worth spending on a short trip
     forageLinger: 25,        // ticks spent searching at the far end

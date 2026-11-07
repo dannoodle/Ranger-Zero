@@ -30,6 +30,7 @@ var RZ = RZ || {};
       weapon: null,
       inHand: null,           // the gun last fired, for the view
       cool: 0,
+      spare: null,            // one gun carried to the next gold, outside the weight limit
       infection: 0,           // the tide's mould, out of 100. Drains health until gold burns it off
       drained: 0,             // tide damage since the last report to the view
       map: RZ.copyKnowledge(sim.book.map),
@@ -134,7 +135,22 @@ var RZ = RZ || {};
           stash.weapons.splice(at, 1);
           r.pack.weapons.push(best);
         }
+        // A gun another carried gun beats at every distance stays here, where someone may want it.
+        RZ.spareGuns(sim.cfg, r.pack.weapons).forEach(function (name) {
+          r.pack.weapons.splice(r.pack.weapons.indexOf(name), 1);
+          stash.weapons.push(name);
+        });
         r.weapon = RZ.bestWeapon(sim.cfg, r.pack.weapons);
+      },
+      // The gun in the spare slot goes into the stash here, for whoever comes through next.
+      stashSpare: function () {
+        var r = sim.ranger;
+        var stash = stashHere();
+        if (!stash || !r.spare) return null;
+        var name = r.spare;
+        stash.weapons.push(name);
+        r.spare = null;
+        return name;
       },
       // Whoever hauls a load also leaves a sidearm, or the next arrival has rounds and no gun.
       leaveSidearm: function () {
@@ -392,6 +408,8 @@ var RZ = RZ || {};
     record.deathTide = sim.tide.number;
     record.x = r.x;
     record.y = r.y;
+    if (r.spare) r.pack.weapons.push(r.spare);
+    r.spare = null;
     record.pack = RZ.copyPack(r.pack);
     record.weapon = r.weapon;
 

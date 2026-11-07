@@ -408,6 +408,9 @@ var RZ = RZ || {};
     var mission = book.mission;
     var have = r.pack;
     loadUp(r, act, shortfall(need, have));
+    // Grenades too, if the stash has them and there's room once the stores are in.
+    var grenades = cfg.planner.grenades + (mission.type === 'clear' ? 1 : 0);
+    if (r.pack.grenade < grenades) act.take('grenade', grenades - r.pack.grenade);
     act.takeBestWeapon();
     mission.attempts++;
     mission.lastTry = clock.tick;
