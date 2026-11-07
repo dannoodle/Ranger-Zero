@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ranger-Zero</title>
+<link rel="stylesheet" href="src/view/style.css">
+</head>
+<body>
+<div id="app">
+  <main id="stage">
+    <canvas id="map"></canvas>
+    <div id="hud">
+      <div class="hud-row"><span id="hudChapter"></span><span id="hudMission"></span></div>
+      <div id="windowBar"><div id="windowFill"></div><div id="windowWalk" title="The walk to the nearest gold"></div><div id="windowTrue" title="When the tide really starts"></div></div>
+      <div class="hud-row"><span id="hudLeft"></span><span id="hudTrue"></span></div>
+      <div id="hudAlarm"></div>
+    </div>
+    <div id="toast"></div>
+    <div id="mapHint"></div>
+    <aside id="history" aria-label="The line"></aside>
+    <div id="overlay"></div>
+  </main>
+
+  <nav id="line" aria-label="Every ranger so far"></nav>
+
+  <nav id="controls">
+    <div class="group" id="speeds"><span class="label">speed</span></div>
+    <div class="group" id="views"><span class="label">view</span></div>
+    <div class="group" id="cameras"><span class="label">camera</span></div>
+    <div class="group">
+      <button type="button" id="historyButton" title="Key H">history</button>
+      <button type="button" id="sound" title="Key N">sound on</button>
+    </div>
+    <form class="group" id="seedForm">
+      <span class="label">seed</span>
+      <input id="seed" inputmode="numeric" aria-label="Seed">
+      <button type="button" id="newSeed">new map</button>
+    </form>
+  </nav>
+
+  <aside id="side">
+    <section id="status" aria-label="Current ranger">
+      <div class="who">
+        <canvas id="portrait" width="144" height="144"></canvas>
+        <div class="ident">
+          <div id="rRank"></div>
+          <div id="rName"></div>
+          <div id="rTraits"></div>
+          <div id="rDoing" class="doing"></div>
+        </div>
+      </div>
+      <div id="rMeters"></div>
+      <div id="rPack"></div>
+    </section>
+
+    <section id="radio" aria-label="Radio">
+      <div class="radio-head">
+        <span class="title">Radio</span>
+        <span class="signal-wrap" title="Signal. Each tide brings a little back."><span class="label">signal</span><span id="signal"></span></span>
+      </div>
+      <div id="trust" title="How far the line trusts Zero. Written in the journal, so it passes down the line."><div id="trustBar"><div id="trustFill"></div></div><span id="trustText"></span></div>
+      <div id="radioLog" aria-live="off"></div>
+      <div id="radioControls">
+        <div class="calls ask">
+          <span class="label">ask</span>
+          <button type="button" data-call="how">how are you</button>
+          <button type="button" data-call="plan">the plan</button>
+          <button type="button" data-call="know">what you know</button>
+          <button type="button" data-call="zero">trust me</button>
+        </div>
+        <div class="calls order">
+          <button type="button" data-call="turnback" title="Key T. 1 signal">turn back<small></small></button>
+          <button type="button" data-call="pushon" title="Key P. 1 signal">push on<small></small></button>
+          <button type="button" data-call="warn" data-tool="warn" title="Key W. 1 signal. Then click the map">warn<small></small></button>
+          <button type="button" data-call="send" data-tool="send" title="Key S. 1 signal. Then click the map">send<small></small></button>
+          <button type="button" data-call="crate" data-tool="crate" title="Key C. 3 signal. Then click the map">crate<small></small></button>
+        </div>
+      </div>
+    </section>
+
+    <section id="journal" aria-label="Journal" aria-live="off"></section>
+  </aside>
+</div>
+
+<!-- Classic scripts, in load order. tools/load.js reads this list and skips src/view/. -->
+<script src="src/config.js"></script>
+<script src="src/sim/rng.js"></script>
+<script src="src/sim/people.js"></script>
+<script src="src/sim/voice.js"></script>
+<script src="src/sim/path.js"></script>
+<script src="src/sim/map.js"></script>
+<script src="src/sim/sense.js"></script>
+<script src="src/sim/tide.js"></script>
+<script src="src/sim/items.js"></script>
+<script src="src/sim/enemies.js"></script>
+<script src="src/sim/oldselves.js"></script>
+<script src="src/sim/anomaly.js"></script>
+<script src="src/sim/journal.js"></script>
+<script src="src/sim/radio.js"></script>
+<script src="src/sim/chapters.js"></script>
+<script src="src/sim/planner.js"></script>
+<script src="src/sim/brain.js"></script>
+<script src="src/sim/sim.js"></script>
+<script src="src/view/fx.js"></script>
+<script src="src/view/render.js"></script>
+<script src="src/view/figures.js"></script>
+<script src="src/view/camera.js"></script>
+<script src="src/view/portrait.js"></script>
+<script src="src/view/audio.js"></script>
+<script src="src/view/panel.js"></script>
+<script src="src/view/overlays.js"></script>
+<script src="src/view/main.js"></script>
+</body>
+</html>
