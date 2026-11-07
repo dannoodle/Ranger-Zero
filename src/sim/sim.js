@@ -30,8 +30,8 @@ var RZ = RZ || {};
       weapon: null,
       inHand: null,           // the gun last fired, for the view
       cool: 0,
-      spare: null,            // one gun carried to the next gold, outside the weight limit
-      infection: 0,           // the tide's mould, out of 100. Drains health until gold burns it off
+      spare: null,            // one gun carried to the next safe house, outside the weight limit
+      infection: 0,           // the tide's mould, out of 100. Drains health until shelter burns it off
       drained: 0,             // tide damage since the last report to the view
       map: RZ.copyKnowledge(sim.book.map),
       path: null,
@@ -48,6 +48,7 @@ var RZ = RZ || {};
       nextThought: sim.tick + Math.round(cfg.voice.gap * 2 * cfg.sim.ticksPerSecond),
       freshGround: 0,
       oldsSeen: {},
+      patrolsSeen: {},
       gravesSeen: {},
       leftBodies: {},
       errand: null,
@@ -378,6 +379,7 @@ var RZ = RZ || {};
     r.map = RZ.copyKnowledge(sim.book.map);
     r.gravesSeen = {};
     r.oldsSeen = {};
+    r.patrolsSeen = {};
     r.leftBodies = {};
     r.inbox = [];
     RZ.speak(sim, r, 'new_land', { place: place.name }, true);
@@ -470,7 +472,7 @@ var RZ = RZ || {};
   }
 
   // The tide burns while it touches a ranger and leaves its mould behind, which drains health until
-  // gold burns it out. The view hears about the damage once a second, not every tick.
+  // shelter burns it out. The view hears about the damage once a second, not every tick.
   function stepInfection(sim, r, cell, inSafe, atHome) {
     var c = sim.cfg.tide;
     var perTick = 1 / sim.cfg.sim.ticksPerSecond;
@@ -481,7 +483,7 @@ var RZ = RZ || {};
     }
     if (r.infection > 0) {
       damage += r.infection * c.drain * perTick;
-      var cure = inSafe ? (atHome ? c.homeCure : c.goldCure) : c.fade;
+      var cure = inSafe ? (atHome ? c.homeCure : c.shelterCure) : c.fade;
       r.infection = Math.max(0, r.infection - cure * perTick);
     }
     if (damage <= 0) return;
@@ -572,6 +574,7 @@ var RZ = RZ || {};
       peopleRng: rng.fork('people'),
       voiceRng: rng.fork('voice'),
       enemyRng: rng.fork('enemies'),
+      patrolRng: rng.fork('patrols'),
       combatRng: rng.fork('combat'),
       anomalyRng: rng.fork('anomalies'),
       boardRng: rng.fork('board'),
@@ -586,6 +589,8 @@ var RZ = RZ || {};
       },
       items: [],
       scavs: [],
+      patrols: [],
+      patrolCosts: null,
       olds: [],
       crates: [],
       camps: [],
@@ -594,6 +599,7 @@ var RZ = RZ || {};
       stashes: {},
       nextItemId: 1,
       nextScavId: 1,
+      nextPatrolId: 1,
       nextAnomalyId: 1,
       rangers: [],
       rangerCount: 0,

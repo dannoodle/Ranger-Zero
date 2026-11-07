@@ -163,7 +163,7 @@ var RZ = RZ || {};
   };
 
   // Where a gun a ranger picks up would go: into the pack if it adds something and fits, or else into
-  // the spare slot, which carries one gun of any weight on the way to the next gold. Not a pistol: there
+  // the spare slot, which carries one gun of any weight on the way to the next safe house. Not a pistol: there
   // are pistols in every stash already. Null if it goes nowhere.
   RZ.slotFor = function (cfg, r, name) {
     var gun = cfg.items.weapons[name];

@@ -18,6 +18,7 @@ var RZ = RZ || {};
       route: new Float32Array(w * h),   // cost plus danger; what routes are planned over
       items: {},                        // cell index to a remembered item
       camps: [],
+      patrols: [],                      // places a patrol has been seen walking
       anomalies: [],
       villages: {},
       warnings: [],                     // spots Zero has warned about
@@ -39,6 +40,7 @@ var RZ = RZ || {};
       route: map.route.slice(),
       items: JSON.parse(JSON.stringify(map.items)),
       camps: JSON.parse(JSON.stringify(map.camps)),
+      patrols: JSON.parse(JSON.stringify(map.patrols || [])),
       anomalies: JSON.parse(JSON.stringify(map.anomalies)),
       villages: JSON.parse(JSON.stringify(map.villages)),
       warnings: JSON.parse(JSON.stringify(map.warnings)),

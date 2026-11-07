@@ -1,7 +1,7 @@
 // Chapters. After enough tides, or once a land's board is done, a greater tide comes. With the land
 // held (Zero's switch, or chapter.hold), only a finished board brings it. It wipes the
 // land: stashes are carried home, a new map rises, and the journal's map is blank again. Lessons,
-// trust and the ranger under gold all survive it.
+// trust and the ranger in shelter all survive it.
 
 var RZ = RZ || {};
 
@@ -97,7 +97,7 @@ var RZ = RZ || {};
     var r = sim.ranger;
     var clock = { tick: sim.tick, seconds: sim.tick / cfg.sim.ticksPerSecond };
     var carried = r && r.alive;
-    RZ.writeEntry(sim.book, clock, 'chapter', 'The greater tide. Everything we mapped is gone. What was under gold has been carried home, and there is new land out there.');
+    RZ.writeEntry(sim.book, clock, 'chapter', 'The greater tide. Everything we mapped is gone. What was stored in the outposts has been carried home, and there is new land out there.');
     if (carried) RZ.relocate(sim, r, world.safe[0]);
     RZ.emit(sim, 'chapter', { summary: summary, chapter: chapterNo, places: landNames(world) });
   };

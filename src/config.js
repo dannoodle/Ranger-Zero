@@ -64,19 +64,19 @@ var CFG = {
     noiseScale: 10,          // cells per wobble in the front
     noiseDrag: 1.4,
     // Caught in the open, a ranger is infected rather than killed outright. The tide burns while it
-    // touches them, and the mould it leaves keeps draining health until gold or a medkit deals with it.
+    // touches them, and the mould it leaves keeps draining health until shelter or a medkit deals with it.
     burn: 4,                 // health per second while the tide is on them
     infectRate: 10,          // infection per second in the tide, out of 100
     drain: 0.04,             // health per second for each point of infection
     fade: 0.15,              // infection lost per second out in the open, on its own
-    goldCure: 4,             // infection burned off per second under an outpost's gold
+    shelterCure: 4,          // infection burned off per second in an outpost's shelter
     homeCure: 12,
     medCure: 40,             // infection a medkit clears
     medAt: 25                // infection at which a ranger out in the open uses a medkit on it
   },
 
   safe: {
-    radius: 4,               // the golden mould ring
+    radius: 4,               // the ring of mould that keeps the tide out
     restHeal: 1,             // health per second resting in an outpost
     homeRestHeal: 4
   },
@@ -163,9 +163,35 @@ var CFG = {
     dropChance: 0.5
   },
 
+  // Patrols: armed groups walking a loop between villages. Fought like scavengers, with the same guns.
+  // Scavenger deaths rise with every walker added (see R-091 on the board).
+  patrol: {
+    count: 2,                // patrols in each land
+    sizeMin: 2,
+    sizeMax: 2,
+    stops: 3,                // villages on a loop
+    legMax: 55,              // furthest one stop is from the next, in cells
+    routeMax: 320,           // longest loop worth walking, in cells
+    spacing: 2,              // cells between walkers in the file
+    moveTicks: 9,            // slower than a camp scavenger giving chase
+    pause: 12,               // steps spent at each village before moving on
+    reinforceChance: 0.2,    // per patrol, per tide, while it's short
+    leash: 8,                // how far they'll leave the route to give chase
+    sight: 10                // walking, they watch the road more than the hills. A camp scavenger's is 13
+  },
+
   combat: {
     treeCover: 0.7,          // multiplies the chance of being hit
-    hutCover: 0.5
+    hutCover: 0.5,
+    // Enemies this close stop walking at the ranger and work round them instead.
+    flank: {
+      close: 3.5,            // closer than this, an armed enemy flanks
+      ring: 2.5,             // the distance they try to hold
+      clawRing: 1.2,         // an old self with no gun closes to arm's length
+      spread: 2.5,           // keep at least this far from each other
+      steps: 4,              // sidesteps round the ranger before holding
+      cover: 0.4             // how much a tree on the cell is worth
+    }
   },
 
   anomaly: {
@@ -235,6 +261,9 @@ var CFG = {
     foodLow: 3,              // fewer meals than this at hand, and food is worth a detour
     campAvoidRadius: 11,
     campAvoidCost: 6,
+    patrolAvoidRadius: 6,    // around each place a patrol was seen walking
+    patrolAvoidCost: 3,
+    patrolMarkSpacing: 6,    // sightings closer than this to one already marked aren't marked again
     anomalyAvoidCost: 30,
     avoidCampAfter: 2
   },
@@ -334,10 +363,16 @@ var CFG = {
 
   // How often rangers talk. In seconds of sim time.
   voice: {
-    gap: 5,                  // minimum between idle lines
+    gap: 8,                  // minimum between lines that can wait
     cooldown: 18,            // before the same kind of line again
-    museEvery: 24,           // a thought while waiting
-    walkEvery: 22,           // a thought on the road
+    // Kinds that would otherwise come round in every fight or every trip.
+    cooldowns: { kill: 45, hurt: 30, contact: 40, flee: 40, safe: 150, eat: 300, hungry: 180, heal: 60, found: 25,
+                 tell: 40, walk_new: 240, muse_tide: 300, low_ammo: 90, no_ammo: 60 },
+    // Seconds before anyone says the same words again. With nothing fresh to say, rangers keep quiet,
+    // except when they owe Zero an answer or something big has happened.
+    rest: 900,
+    museEvery: 70,           // a thought while waiting
+    walkEvery: 55,           // a thought on the road
     lines: 300,
     graveRange: 7
   },
@@ -355,7 +390,8 @@ var CFG = {
     leash: 26,               // how far they'll drift from where they rose
     lifeTides: 4,            // then the mould lets go
     gearWorth: 1,            // bodies carrying less than this stay down
-    mutterEvery: 45
+    mutterEvery: 45,
+    mutterRange: 16          // cells; further off, the ranger can't hear them and neither can Zero
   },
 
   // The board: what the line is asked to do in each land. See objectives.js.
@@ -465,6 +501,7 @@ var CFG = {
     tideEdgeBand: 0.035,      // in tide level; the bright lip of the front
     tideGlowBand: 0.05,
     tideGlowAlpha: 0.32,
+    tideOutOfSight: 0.72,     // ranger view: the tide beyond the ranger's sight, as a share of its strength
     fogColor: [9, 13, 17],
     fogUnknownRanger: 0.96,
     fogRememberedRanger: 0.4,
@@ -494,6 +531,7 @@ var CFG = {
     old: '#b58cd8',
     oldCoat: '#57446e',
     scavCoat: '#7a3a2e',
+    patrolRoute: 'rgba(228, 89, 63, 0.3)',  // a patrol's loop, in Zero's views only
     paper: '#efe7d2',
     paperInk: '#262320',
     warnMark: '#ffb547',
@@ -509,7 +547,7 @@ var CFG = {
       max: 6,
       road: 2.3,             // the camera's zoom while walking
       fight: 3,
-      gold: 1.9,             // at rest under gold
+      shelter: 1.9,          // at rest in shelter
       tide: 1.15,            // waiting out a tide: pull back and watch it
       caught: 1.9,           // out in the open with a tide on
       dead: 2.8,
@@ -519,7 +557,7 @@ var CFG = {
     },
     pace: {
       wait: 8,               // auto speed while waiting out a calm spell
-      tide: 4,               // waiting out a tide under gold
+      tide: 4,               // waiting out a tide in shelter
       road: 2,               // an uneventful walk
       danger: 1,             // enemies in view, or the tide close
       crisis: 0.6,           // close to dying

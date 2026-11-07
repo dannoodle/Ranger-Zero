@@ -346,7 +346,7 @@ var RZ = RZ || {};
     world.moveCost = cost;
   }
 
-  // Marks the cells inside each golden ring, and a wider band that hazards keep clear of.
+  // Marks the cells inside each safe house's ring, and a wider band that hazards keep clear of.
   function buildSafeMasks(world, cfg) {
     var w = world.w;
     var h = world.h;

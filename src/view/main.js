@@ -73,11 +73,11 @@
     if (!r.alive) return pace.tide;
     var world = sim.world;
     var cell = r.x + r.y * world.w;
-    var underGold = world.safeMask[cell] === 1;
+    var inShelter = world.safeMask[cell] === 1;
     var tideOn = sim.tide.phase !== 'calm';
-    if (underGold && (r.mode === 'wait' || r.mode === 'plan')) return tideOn ? pace.tide : pace.wait;
+    if (inShelter && (r.mode === 'wait' || r.mode === 'plan')) return tideOn ? pace.tide : pace.wait;
     if (r.hp < CFG.ranger.hpMax * 0.3) return pace.crisis;
-    if (tideOn && !underGold) {
+    if (tideOn && !inShelter) {
       var gap = sim.tide.front[cell] - sim.tide.level;
       if (gap < 0.12) return pace.crisis;
       return pace.danger;
@@ -202,7 +202,7 @@
   var TOOL_HINTS = {
     warn: 'Click the map to warn {who} off a spot.',
     send: 'Click the map to send {who} to a spot.',
-    crate: 'Click the map to drop a crate. Inside a gold ring it goes straight into the stash.'
+    crate: 'Click the map to drop a crate. Dropped in a safe house, it goes straight into the stash.'
   };
 
   function setTool(type) {

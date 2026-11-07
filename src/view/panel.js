@@ -6,11 +6,11 @@ var RZ = RZ || {};
 (function () {
   var MODE_WORDS = {
     plan: 'thinking it over',
-    wait: 'waiting under gold',
+    wait: 'sheltering',
     travel: 'on the move',
     fight: 'fighting',
     flee: 'running',
-    shelter: 'running for gold',
+    shelter: 'running for shelter',
     climb: 'climbing for high ground'
   };
 
@@ -37,10 +37,10 @@ var RZ = RZ || {};
     return minutes + ':' + String(seconds % 60).padStart(2, '0');
   }
 
-  function meter(name, value, max, type) {
+  function meter(name, value, max, type, text) {
     var share = Math.max(0, Math.min(1, value / max));
     return '<div class="meter"><span>' + name + '</span><span class="bar"><span class="fill ' + type +
-      '" style="width:' + Math.round(share * 100) + '%"></span></span><span class="value">' + Math.round(value) + '</span></div>';
+      '" style="width:' + Math.round(share * 100) + '%"></span></span><span class="value">' + (text || Math.round(value)) + '</span></div>';
   }
 
   function byId(id) {
@@ -90,6 +90,10 @@ var RZ = RZ || {};
       html += meter('health', r.hp, cfg.ranger.hpMax, 'hp');
       html += meter('food', r.energy, cfg.ranger.energyMax, 'energy');
       if (r.infection > 0) html += meter('mould', r.infection, 100, 'mould');
+      // The spare gun rides outside the weight limit, so it isn't counted here.
+      var load = RZ.packWeight(cfg, r.pack);
+      html += meter('pack', load, r.capacity, load >= r.capacity - 0.5 ? 'load full' : 'load',
+        Math.round(load) + '/' + r.capacity);
     }
     byId('rMeters').innerHTML = html;
     byId('rPack').textContent = r.alive
@@ -100,7 +104,7 @@ var RZ = RZ || {};
   };
 
   var URGENT_NOW = {
-    shelter: 'Running for gold',
+    shelter: 'Running for shelter',
     climb: 'Climbing for high ground',
     flee: 'Running from them',
     fight: 'Fighting'
@@ -134,7 +138,7 @@ var RZ = RZ || {};
     if (!r.alive) now = 'No ranger in the field.';
     else if (urgent) now = URGENT_NOW[r.mode];
     else if (plan && plan.brief) now = plan.brief.task;
-    else if (plan && plan.kind === 'errand') now = 'Go to Zero\'s mark, then back under gold';
+    else if (plan && plan.kind === 'errand') now = 'Go to Zero\'s mark, then back to shelter';
     else now = 'Thinking it over';
     if (r.alive && !urgent && plan && plan.brief && plan.kind !== 'errand') {
       for (var n = plan.at; n < plan.steps.length; n++) {
@@ -279,9 +283,9 @@ var RZ = RZ || {};
     }
 
     var cell = r.x + r.y * sim.world.w;
-    var underGold = sim.world.safeMask[cell] === 1;
-    var shelter = underGold ? null : RZ.nearestSafe(r, book, { x: r.x, y: r.y });
-    var walkText = shelter ? Math.ceil(shelter.seconds) + 's walk to ' + shelter.place.name : 'under gold';
+    var inShelter = sim.world.safeMask[cell] === 1;
+    var shelter = inShelter ? null : RZ.nearestSafe(r, book, { x: r.x, y: r.y });
+    var walkText = shelter ? Math.ceil(shelter.seconds) + 's walk to ' + shelter.place.name : 'in shelter';
 
     if (tide.phase !== 'calm') {
       bar.className = 'tide';
@@ -290,10 +294,10 @@ var RZ = RZ || {};
       trueMark.style.display = 'none';
       var gap = sim.tide.front[cell] - tide.level;
       var words = (tide.greater ? 'Greater tide, ' : 'Tide ') + TIDE_WORDS[tide.phase];
-      if (underGold) left.textContent = words + '. ' + r.first + ' is under gold.';
+      if (inShelter) left.textContent = words + '. ' + r.first + ' is in shelter.';
       else if (gap > 0 && tide.phase === 'surge') left.textContent = words + '. ' + walkText + '.';
       else left.textContent = words + '.';
-      right.textContent = !underGold && zeroSees && gap > 0 && tide.phase === 'surge' ? 'reaches ' + r.first + ' in ' + Math.ceil(tideArrival(sim, cell)) + 's' : '';
+      right.textContent = !inShelter && zeroSees && gap > 0 && tide.phase === 'surge' ? 'reaches ' + r.first + ' in ' + Math.ceil(tideArrival(sim, cell)) + 's' : '';
       return;
     }
 

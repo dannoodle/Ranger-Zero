@@ -6,7 +6,7 @@ var RZ = RZ || {};
 
 (function () {
   var MUTTERS = [
-    '...is this Zero...', '...came all this way...', '...tell them I...', '...the gold, the gold is...',
+    '...is this Zero...', '...came all this way...', '...tell them I...', '...let me in, let me in...',
     '...still walking...', '...cold now, it wasn\'t cold...', '...whose hands are...', '...nearly home...'
   ];
 
@@ -48,6 +48,10 @@ var RZ = RZ || {};
   function mutter(sim, old) {
     var c = sim.cfg.oldself;
     if (sim.tick < old.nextMutter) return;
+    var r = sim.ranger;
+    var dx = r.x - old.x;
+    var dy = r.y - old.y;
+    if (dx * dx + dy * dy > c.mutterRange * c.mutterRange) return;
     old.nextMutter = sim.tick + Math.round(c.mutterEvery * sim.cfg.sim.ticksPerSecond);
     var own = old.words ? '...' + old.words.toLowerCase().replace(/[.!?]+$/, '') + '...' : null;
     var words = own && old.lastMutter !== own && sim.voiceRng.chance(0.4) ? own : sim.voiceRng.pick(MUTTERS);
@@ -102,26 +106,26 @@ var RZ = RZ || {};
     }
     old.moveWait = c.moveTicks;
     var rng = sim.enemyRng;
-    var moveX;
-    var moveY;
     if ((chasing || old.alert > 0) && r && r.alive) {
       old.alert = Math.max(0, old.alert - c.moveTicks);
-      moveX = Math.sign(r.x - old.x);
-      moveY = Math.sign(r.y - old.y);
-    } else {
-      // A slow drift, wandering but always tending back towards where it rose.
-      moveX = rng.int(-1, 1);
-      moveY = rng.int(-1, 1);
-      if (Math.abs(old.x - old.homeX) > c.leash) moveX = Math.sign(old.homeX - old.x);
-      if (Math.abs(old.y - old.homeY) > c.leash) moveY = Math.sign(old.homeY - old.y);
+      // One with rounds or grenades works round the ranger at range; one with neither closes to claw.
+      var armed = (old.pack.weapons.length > 0 && old.pack.ammo > 0) || old.pack.grenade > 0;
+      var to = RZ.closeOn(sim, old, armed, true);
+      if (to) {
+        old.x = to.x;
+        old.y = to.y;
+      }
+      return;
     }
-    var nx = old.x + moveX;
-    var ny = old.y + moveY;
-    if (nx < 0 || ny < 0 || nx >= world.w || ny >= world.h) return;
-    var cell = nx + ny * world.w;
-    if (world.water[cell] === 2 || world.huts[cell] || world.safeMask[cell]) return;
-    old.x = nx;
-    old.y = ny;
+    // A slow drift, wandering but always tending back towards where it rose.
+    var moveX = rng.int(-1, 1);
+    var moveY = rng.int(-1, 1);
+    if (Math.abs(old.x - old.homeX) > c.leash) moveX = Math.sign(old.homeX - old.x);
+    if (Math.abs(old.y - old.homeY) > c.leash) moveY = Math.sign(old.homeY - old.y);
+    if (RZ.enemyCanStep(sim, old, old.x + moveX, old.y + moveY, true)) {
+      old.x += moveX;
+      old.y += moveY;
+    }
   }
 
   RZ.stepOldSelves = function (sim) {

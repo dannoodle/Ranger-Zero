@@ -132,7 +132,7 @@ var RZ = RZ || {};
       lessons.nerve = Math.max(c.nerveMin, lessons.nerve * c.nerveLoss);
       lesson = say(book, ['The tide comes sooner than we allow for. Keeping a wider margin.',
                           'We cut it too fine. Turning back earlier from now on.',
-                          'Giving the tide more respect. Leaving more time to get under gold.']);
+                          'Giving the tide more respect. Leaving more time to reach shelter.']);
     } else if (cause === 'starved') {
       headline = RZ.who(r) + ', starved near ' + place + '.';
       lessons.foodExtra = Math.min(c.foodExtraMax, lessons.foodExtra + 1);

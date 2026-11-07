@@ -37,14 +37,14 @@ var RZ = RZ || {};
     }
     this.lastFocus = { x: r.x, y: r.y };
     var cell = r.x + r.y * world.w;
-    var underGold = world.safeMask[cell] === 1;
+    var inShelter = world.safeMask[cell] === 1;
     var tideOn = sim.tide.phase !== 'calm';
-    if (underGold && tideOn) {
+    if (inShelter && tideOn) {
       return { x: r.x + (centre.x - r.x) * 0.75, y: r.y + (centre.y - r.y) * 0.75, zoom: z.tide };
     }
     if (r.mode === 'fight' || r.mode === 'flee') return { x: focus.x, y: focus.y, zoom: z.fight };
     if (tideOn) return { x: focus.x, y: focus.y, zoom: z.caught };
-    if (underGold) return { x: focus.x, y: focus.y, zoom: z.gold };
+    if (inShelter) return { x: focus.x, y: focus.y, zoom: z.shelter };
     return { x: focus.x, y: focus.y, zoom: z.road };
   };
 

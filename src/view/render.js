@@ -425,28 +425,29 @@ var RZ = RZ || {};
         var depth = level - fine[i];
         var alpha = 0;
         if (depth > -glow && fine[i] < 1.5) {
-          if (!ranger || stamp[Math.floor(x / s) + Math.floor(y / s) * world.w] === generation) {
-            var r, g, b;
-            if (depth <= 0) {
-              var ahead = 1 + depth / glow;
-              alpha = ahead * ahead * look.tideGlowAlpha;
-              r = bright[0]; g = bright[1]; b = bright[2];
-            } else {
-              var edge = Math.max(0, 1 - depth / band);
-              var vein = veins[i] * pulse * (look.tideVeinDepth + (1 - look.tideVeinDepth) * Math.max(0, 1 - depth / look.tideVeinFade));
-              var light = Math.min(1, edge * edge + vein * look.tideVeinStrength);
-              alpha = look.tideBodyAlpha + (1 - look.tideBodyAlpha) * Math.min(1, light);
-              var from = light < 0.5 ? dark : mid;
-              var to = light < 0.5 ? mid : bright;
-              var mixAt = light < 0.5 ? light * 2 : (light - 0.5) * 2;
-              r = from[0] + (to[0] - from[0]) * mixAt;
-              g = from[1] + (to[1] - from[1]) * mixAt;
-              b = from[2] + (to[2] - from[2]) * mixAt;
-            }
-            data[at] = r;
-            data[at + 1] = g;
-            data[at + 2] = b;
+          // The tide is too big to miss, so the ranger view shows all of it, a little fainter out of sight.
+          var sight = !ranger || stamp[Math.floor(x / s) + Math.floor(y / s) * world.w] === generation ? 1 : look.tideOutOfSight;
+          var r, g, b;
+          if (depth <= 0) {
+            var ahead = 1 + depth / glow;
+            alpha = ahead * ahead * look.tideGlowAlpha;
+            r = bright[0]; g = bright[1]; b = bright[2];
+          } else {
+            var edge = Math.max(0, 1 - depth / band);
+            var vein = veins[i] * pulse * (look.tideVeinDepth + (1 - look.tideVeinDepth) * Math.max(0, 1 - depth / look.tideVeinFade));
+            var light = Math.min(1, edge * edge + vein * look.tideVeinStrength);
+            alpha = look.tideBodyAlpha + (1 - look.tideBodyAlpha) * Math.min(1, light);
+            var from = light < 0.5 ? dark : mid;
+            var to = light < 0.5 ? mid : bright;
+            var mixAt = light < 0.5 ? light * 2 : (light - 0.5) * 2;
+            r = from[0] + (to[0] - from[0]) * mixAt;
+            g = from[1] + (to[1] - from[1]) * mixAt;
+            b = from[2] + (to[2] - from[2]) * mixAt;
           }
+          data[at] = r;
+          data[at + 1] = g;
+          data[at + 2] = b;
+          alpha *= sight;
         }
         data[at + 3] = alpha * 255;
       }
@@ -538,6 +539,29 @@ var RZ = RZ || {};
       var noticed = known.items[item.x + item.y * w] || self.visibleNow(item.x, item.y);
       self.drawItemMark(item.kind, item.x, item.y, self.mode === 'dual' && !noticed ? 0.45 : 1, item.weapon);
     });
+  };
+
+  // Patrol loops, faint and dotted. Rangers don't know them, so the ranger view doesn't show them.
+  Renderer.prototype.drawPatrols = function () {
+    if (this.mode === 'ranger' || !this.sim.patrols) return;
+    var ctx = this.ctx;
+    var self = this;
+    var w = this.sim.world.w;
+    ctx.strokeStyle = this.look.patrolRoute;
+    ctx.lineWidth = 1 * this.dpr;
+    ctx.setLineDash([1.5 * this.dpr, 5 * this.dpr]);
+    this.sim.patrols.forEach(function (patrol) {
+      var route = patrol.route;
+      ctx.beginPath();
+      for (var i = 0; i <= route.length; i++) {
+        var cell = route[i % route.length];
+        var x = self.toX(cell % w);
+        var y = self.toY(Math.floor(cell / w));
+        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
   };
 
   Renderer.prototype.drawScavengers = function () {
@@ -669,6 +693,7 @@ var RZ = RZ || {};
     this.drawMarks();
     this.drawThreat();
     this.drawCrates();
+    this.drawPatrols();
     this.drawScavengers();
     this.drawPlaces();
     this.drawObjectives();

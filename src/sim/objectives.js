@@ -2,7 +2,7 @@
 // so rangers know where each objective is the way they know where the outposts are.
 //
 // Four kinds of objective:
-//   survey    reach a far site and come back under gold
+//   survey    reach a far site and come back to shelter
 //   clear     break the scavenger camp at a named village, then come back
 //   retrieve  fetch a relic from a marked spot and bring it home
 //   stock     fill a named outpost to the amounts on the board

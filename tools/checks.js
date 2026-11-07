@@ -158,7 +158,7 @@ section('The tide', () => {
     if (peak > 0.9 && sim.tide.level === 0) cycled = true;
   }
   check('rises to full flood', peak >= 1);
-  check('never crosses gold', !touchedSafe);
+  check('never crosses into a safe house', !touchedSafe);
   check('pulls back', cycled);
   const valley = [];
   const ridge = [];
@@ -203,7 +203,7 @@ section('Tide infection', () => {
   r.infection = 60;
   const hp = r.hp;
   for (let t = 0; t < CFG.sim.ticksPerSecond * 10; t++) RZ.stepSim(sim);
-  check('gold burns the mould out', r.infection === 0 && r.hp > hp - 30, 'infection ' + r.infection.toFixed(1));
+  check('shelter burns the mould out', r.infection === 0 && r.hp > hp - 30, 'infection ' + r.infection.toFixed(1));
   let lived = 0;
   for (let seed = 1; seed <= options.seeds; seed++) {
     lived += run(seed, options.ticks * 2).book.entries.filter(e => /The tide caught me out/.test(e.text)).length;
@@ -243,7 +243,7 @@ section('Picking things up', () => {
   r.x = r.fromX = home.x;
   r.y = r.fromY = home.y;
   const guns = sim.stashes.home.weapons.length;
-  check('the spare is left at the next gold', sim.actions.stashSpare() === 'shotgun' && r.spare === null && sim.stashes.home.weapons.length === guns + 1);
+  check('the spare is left at the next safe house', sim.actions.stashSpare() === 'shotgun' && r.spare === null && sim.stashes.home.weapons.length === guns + 1);
   check('a rifle makes a pistol spare, a shotgun is never spare', RZ.spareGuns(CFG, ['pistol', 'rifle']).join() === 'pistol' &&
     RZ.spareGuns(CFG, ['shotgun', 'rifle', 'mp5']).length === 0);
 });
@@ -353,6 +353,70 @@ section('A greater tide', () => {
     ['survey', 'clear', 'retrieve', 'stock'].every(type => sim.board.objectives.some(o => o.type === type)));
   check('the new board is all open', sim.book.objectives.every(o => !o.done));
   check('no problems in the new land', sim.world.problems.length === 0);
+});
+
+section('Enemies keep their own ground, and patrols walk', () => {
+  // Enemies move before the ranger in a tick, so an enemy that moved is checked against where the
+  // ranger stood when it moved. A ranger walking onto an enemy is the ranger's doing; the enemy steps off.
+  let ontoRanger = 0;
+  let ontoEnemy = 0;
+  let closeTicks = 0;
+  let closeSum = 0;
+  let lands = 0;
+  let withPatrols = 0;
+  let walked = 0;
+  let chased = 0;
+  let back = 0;
+  for (let seed = 1; seed <= options.seeds; seed++) {
+    const sim = RZ.createSim(CFG, seed);
+    let world = null;
+    const chasing = {};
+    for (let t = 0; t < options.ticks; t++) {
+      if (sim.world !== world) {
+        world = sim.world;
+        lands++;
+        if (sim.patrols.length) withPatrols++;
+      }
+      const r = sim.ranger;
+      const at = r.alive ? { x: r.x, y: r.y } : null;
+      const before = new Map();
+      sim.scavs.concat(sim.olds).forEach(e => before.set(e, e.x + ',' + e.y));
+      RZ.stepSim(sim);
+      const enemies = sim.scavs.concat(sim.olds);
+      const cells = new Map();
+      enemies.forEach(e => cells.set(e.x + ',' + e.y, (cells.get(e.x + ',' + e.y) || 0) + 1));
+      enemies.forEach(e => {
+        const was = before.get(e);
+        if (!was || was === e.x + ',' + e.y) return;
+        if (at && e.x === at.x && e.y === at.y) ontoRanger++;
+        if (cells.get(e.x + ',' + e.y) > 1) ontoEnemy++;
+        if (e.patrol != null) walked++;
+      });
+      if (r.alive && r.mode === 'fight') {
+        enemies.forEach(e => {
+          const d = Math.hypot(e.x - r.x, e.y - r.y);
+          if (d <= CFG.combat.flank.close) { closeTicks++; closeSum += d; }
+        });
+      }
+      sim.scavs.forEach(s => {
+        if (s.patrol == null) return;
+        if (s.fromX != null) chasing[s.id] = true;
+        const patrol = sim.patrols.find(p => p.id === s.patrol);
+        if (chasing[s.id] && s.fromX == null && patrol && patrol.route[s.at] === s.x + s.y * sim.world.w) {
+          chasing[s.id] = false;
+          back++;
+        }
+        if (chasing[s.id]) chased++;
+      });
+    }
+  }
+  check('no enemy steps onto the ranger', ontoRanger === 0, ontoRanger + ' times');
+  check('no enemy steps onto another', ontoEnemy === 0, ontoEnemy + ' times');
+  check('enemies close in a fight hold off the ranger (mean ' + (closeSum / Math.max(1, closeTicks)).toFixed(2) + ' cells)',
+    closeTicks > 0 && closeSum / closeTicks >= 1.2, closeTicks + ' enemy-ticks seen');
+  check('every land has patrols (' + withPatrols + ' of ' + lands + ')', withPatrols === lands);
+  check('patrols walk (' + walked + ' steps)', walked > options.seeds * 50);
+  check('patrols give chase and go back to their route (' + back + ' times)', chased > 0 && back > 0);
 });
 
 section('The board', () => {

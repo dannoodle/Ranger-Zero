@@ -52,6 +52,7 @@ var RZ = RZ || {};
       var hurt = camp.beatUs || 0;
       raise(camp.x, camp.y, p.campAvoidRadius + hurt * 2, p.campAvoidCost * (1 + hurt));
     });
+    map.patrols.forEach(function (seen) { raise(seen.x, seen.y, p.patrolAvoidRadius, p.patrolAvoidCost); });
     map.anomalies.forEach(function (a) { raise(a.x, a.y, 3, p.anomalyAvoidCost); });
     map.warnings.forEach(function (mark) {
       if (mark.heeded) raise(mark.x, mark.y, r.cfg.radio.warnRadius, r.cfg.radio.warnCost);
@@ -64,13 +65,36 @@ var RZ = RZ || {};
     var camp = RZ.campNear(map, enemy.x, enemy.y, 12);
     if (!camp) {
       var name = RZ.nearestName(r.book, map, enemy.x, enemy.y);
+      // A big camp can be spotted from two sides. It's still news only once.
+      var known = map.camps.some(function (other) { return other.name === name; });
       camp = { x: enemy.x, y: enemy.y, name: name, spotted: 0, beatUs: 0, lowAmmo: 0 };
       map.camps.push(camp);
       map.dangerDirty = true;
-      RZ.writeEntry(r.book, r.clock, 'note', RZ.lead(r) + 'Scavengers camped at ' + name + '.');
-      act.say('camp_seen', { place: name });
+      if (!known) {
+        RZ.writeEntry(r.book, r.clock, 'note', RZ.lead(r) + 'Scavengers camped at ' + name + '.');
+        act.say('camp_seen', { place: name });
+      }
     }
     camp.spotted++;
+  }
+
+  // A group on the move isn't a camp, so it isn't marked as one. Where it was seen goes on the map,
+  // so over time the journal learns the roads patrols use. It's written up once a life.
+  function notePatrol(r, enemy, book, clock, act) {
+    var map = r.map;
+    var reach = r.cfg.planner.patrolMarkSpacing;
+    var near = map.patrols.some(function (seen) {
+      return Math.abs(seen.x - enemy.x) <= reach && Math.abs(seen.y - enemy.y) <= reach;
+    });
+    if (!near) {
+      map.patrols.push({ x: enemy.x, y: enemy.y });
+      map.dangerDirty = true;
+    }
+    if (r.patrolsSeen[enemy.patrol]) return;
+    r.patrolsSeen[enemy.patrol] = true;
+    var place = RZ.nearestName(book, r.map, enemy.x, enemy.y);
+    act.say('patrol_seen', { place: place });
+    RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'A patrol on the move near ' + place + '. They don\'t keep to one place.');
   }
 
   function noteOldSelf(r, enemy, book, clock, act) {
@@ -153,6 +177,7 @@ var RZ = RZ || {};
     percept.hutsSeen.forEach(function (village) { map.villages[village.id] = village; });
     percept.enemies.forEach(function (enemy) {
       if (enemy.old) noteOldSelf(r, enemy, book, clock, act);
+      else if (enemy.patrol != null) notePatrol(r, enemy, book, clock, act);
       else noteCamp(r, enemy, act);
     });
     settleWarnings(r, book, percept, act, clock);
@@ -178,7 +203,7 @@ var RZ = RZ || {};
 
   function upkeep(r, act, place) {
     var c = r.cfg.ranger;
-    // The tide's mould. A medkit burns some of it out, when there's no gold near enough to do it.
+    // The tide's mould. A medkit burns some of it out, when there's no shelter near enough to do it.
     if (r.infection > 0 && !place && !r.caught) {
       r.caught = true;
       act.say('tide_touch');
@@ -207,7 +232,7 @@ var RZ = RZ || {};
   function arriveSafe(r, book, place, act, percept, clock) {
     if (r.lastSafe === place.id) return;
     var close = (percept.tide && percept.tide.distance < 18) || r.mode === 'shelter' && RZ.timeLeft(book, clock.seconds, r) < 8;
-    if (r.lastSafe !== null || close) act.say(close ? 'safe_close' : 'safe');
+    if (r.lastSafe !== null || close) act.say(close ? 'safe_close' : 'safe', { place: place.name });
     r.lastSafe = place.id;
     act.usedSafeHouse(place.id);
     RZ.commitMap(book, r);
@@ -219,7 +244,7 @@ var RZ = RZ || {};
     r.caught = false;
     var c = r.cfg.lessons;
     book.lessons.tideMargin = Math.min(c.tideMarginMax, book.lessons.tideMargin + c.tideMarginCaught);
-    RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'The tide caught me out. Made it under gold at ' + place.name +
+    RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'The tide caught me out. Made it to shelter at ' + place.name +
       ' with the mould in me. Leaving more time from now on.');
   }
 
@@ -546,7 +571,7 @@ var RZ = RZ || {};
     return true;
   }
 
-  // Decides whether it's time to stop everything and get under gold.
+  // Decides whether it's time to stop everything and get to shelter.
   function handleTide(r, book, percept, clock, act) {
     var p = r.cfg.planner;
     var incoming = percept.tide && percept.tide.distance <= (r.lastTideDistance === undefined ? 99 : r.lastTideDistance);
@@ -580,7 +605,7 @@ var RZ = RZ || {};
       act.say('turn_back');
     }
 
-    // Already in it: every second there burns, and higher ground that's flooded is no help. Run for gold.
+    // Already in it: every second there burns, and higher ground that's flooded is no help. Run for shelter.
     var inIt = percept.tide && percept.tide.distance < 1;
     if (!inIt && percept.tide && percept.tide.distance < p.climbWhenTideWithin && shelter.seconds > p.climbWhenShelterBeyond) {
       if (r.mode !== 'climb') act.say('climb');
@@ -609,7 +634,7 @@ var RZ = RZ || {};
     var room = spare + RZ.roomToMake(cfg, pack, keepRounds(r));
     if (item.kind === 'weapon') {
       var gun = cfg.items.weapons[item.weapon];
-      // The spare slot takes anything but a pistol, to leave at the next gold.
+      // The spare slot takes anything but a pistol, to leave at the next safe house.
       if (!r.spare && item.weapon !== 'pistol') return true;
       if (pack.weapons.indexOf(item.weapon) >= 0) return false;
       if (RZ.spareGuns(cfg, pack.weapons.concat([item.weapon])).indexOf(item.weapon) >= 0) return false;
@@ -620,7 +645,7 @@ var RZ = RZ || {};
     return cfg.items.weights[item.kind] <= (RZ.MAKES_ROOM[item.kind] ? room : spare);
   }
 
-  // Whether a detour to a spot still gets the ranger under gold in time, by the journal.
+  // Whether a detour to a spot still gets the ranger to shelter in time, by the journal.
   // Measured pessimistically, as if every cell were unknown ground, both ways.
   function detourFits(r, book, clock, spot, shelter) {
     var p = r.cfg.planner;

@@ -12,7 +12,7 @@ An autonomous top-down survival sim. See [docs/concept.md](docs/concept.md) for 
 - **Moving a card:** cut the line and paste it into the new column. When it reaches Done, tick the box and add the date: `- [x] R-001 Short description (2026-11-06)`.
 - **Done** stays on this board until it gets long, then older cards move to `KANBAN-archive.md`.
 
-**Next ID:** R-088
+**Next ID:** R-096
 
 ---
 
@@ -70,7 +70,6 @@ Phase C: supply and looting strategy.
   Not the rewards: with rewards switched off it's the same (median 1, 130 deaths). The planner now works on whichever objective is readiest, so attempts go into objectives the line is prepared for. Levers: `objectives.weigh.ready` and `stick`, survey site distance, or more tides of danger. Or accept it, since the challenge has moved to finishing the board (see R-076).
 - [ ] R-076 Boards are rarely finished before the greater tide: 2 of 100 lands at 8 tides with six objectives. Smaller boards, more tides, or leave it to the hold switch.
 - [ ] R-077 A new board can't offer new survey sites, because a land only has three. Should a new board be able to place fresh sites?
-- [ ] R-078 "Scavengers camped at X" is sometimes written twice for the same village a few seconds apart (seeds 3 and 5). Not yet checked whether this predates the board.
 
 ### From the new weapons
 
@@ -81,7 +80,13 @@ Phase C: supply and looting strategy.
 
 - [ ] R-084 Anomaly deaths rose from 56 to 77 with the 150s calm, over the same sim time
   With the fixes but the old 110s calm it stays at 56, so it's the longer calm: more walking per tide. Tides per death fell from 8.1 to 5.1. Levers: `anomaly.noticeChance`, or accept it as the price of longer trips.
-- [ ] R-085 A ranger caught far from gold runs for it through the tide, 36 seconds in one run. Climbing out of the tide first and then walking may live more often, and read better.
+- [ ] R-085 A ranger caught far from shelter runs for it through the tide, 36 seconds in one run. Climbing out of the tide first and then walking may live more often, and read better.
+
+### From patrols (2026-11-07)
+
+- [ ] R-091 Patrols raised scavenger deaths from 31 to 54 (seeds 1 to 20) and 33 to 56 (seeds 21 to 40); objectives done fell from 363 to 331 and boards finished from 11 to 7 of 80
+  Most of the extra deaths come on Clear missions, when a patrol whose loop stops at that village walks into the camp fight. Levers: `patrol.count` and `sizeMax` (deaths scale with walkers: one patrol gives 43, three of 2 to 3 give 75 to 105), loops that avoid camp villages, or the planner allowing extra rounds when the journal has patrol sightings near a target. Leash and sight hardly matter.
+- [ ] R-092 The journal marks where patrols were seen and routes bend a little round those marks, but the planner doesn't count them as danger when rating objectives or packing rounds
 
 ### After the first version
 
@@ -96,6 +101,19 @@ Phase C: supply and looting strategy.
   The calm slider (R-079) is the first. Others only if a value turns out to be worth changing while watching.
 
 ## Done
+
+- [x] R-095 Better dialogue: rangers say less, never repeat a line soon after anyone said it, and keep quiet rather than fall back on the most common lines (2026-11-07)
+  A line rests 900s after anyone says it. Filler and fight barks stay silent when every version is resting; answers to Zero and big moments fall back on the line said longest ago. Per-kind cooldowns for barks (kill 45s, contact 40s, eat 300s, a tide muse once a tide), thoughts every 70s waiting and 55s walking instead of 24s and 22s, the blandest filler cut and some sharper lines added. Old selves only mutter within 16 cells of the ranger. 6 seeds of 12 tides: 5.4 lines a minute to 3.5, the most repeated line 36 times to 14. Covers R-078: a camp seen from two sides is written up once.
+- [x] R-094 Say shelter, outpost or safe house instead of "gold" in everything a player reads: talk, journal, plan, panel and hints (2026-11-07)
+  Also the code that means a place (`inShelter`, `tide.shelterCure`, `look.zoom.shelter`). Gold stays only as a colour: the rings, toasts and the CSS token.
+- [x] R-093 The tide fills the ranger view: drawn everywhere it is, a little fainter beyond the ranger's sight, instead of only on cells in sight (2026-11-07)
+
+- [x] R-088 Enemies flank instead of standing on the ranger: very close enemies keep a ring, spread round and take cover, and never share a cell with the ranger or each other (2026-11-07)
+  Within 3.5 cells an armed enemy holds about 2.5 off, an old self with no gun closes to arm's length, and each sidesteps up to 4 cells round before holding. Further off they walk straight in, edging round anything in the way. On its own this left scavenger deaths at 28 against 31. Checks: no enemy steps onto the ranger or another enemy, and close enemies in fights average 2.4 cells off.
+- [x] R-089 Patrolling enemies: armed groups walk a loop between villages, chase and flank like a camp, then go back to their route (2026-11-07)
+  2 patrols of 2 in each land, on their own random stream, pausing at each village. Walkers step round each other where loops run out and back over the same ground. A ranger can tell a patrol from a camp, so it isn't marked as a camp: the journal writes it up once a life and marks where it was seen, and routes bend a little round the marks. Zero's views show each loop as a faint dotted line. Balance in R-091.
+- [x] R-090 Show pack capacity next to the ranger's inventory (2026-11-07)
+  A pack meter under food shows weight against capacity, turning orange when full. The spare gun isn't counted, since it rides outside the limit.
 
 - [x] R-086 A spare weapon slot: rangers pick up any gun but a pistol and leave it at the next gold they reach, so stashes fill with better guns over time (2026-11-07)
   The slot carries one gun outside the weight limit. Guns are worth going 1.6 times further for. A ranger at a stash takes the best gun there and leaves any carried gun another beats at every distance, so a pistol stays behind once there's a rifle. Rangers carrying a rifle as their main gun, 6 seeds: 25% in tides 0 to 9 rising to 95% by tides 20 to 29, against 25% to 28% before.

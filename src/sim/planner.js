@@ -48,7 +48,7 @@ var RZ = RZ || {};
     return book.tide.window * (1 - margin);
   };
 
-  // Seconds before a ranger should be under gold, by the journal's estimate of the tide.
+  // Seconds before a ranger should be in shelter, by the journal's estimate of the tide.
   RZ.timeLeft = function (book, seconds, r) {
     var t = book.tide;
     if (t.active) return 0;
@@ -168,7 +168,7 @@ var RZ = RZ || {};
       { text: 'Start from ' + staging.place.name, done: true },
       { text: staging.place.name + ' stocked: ' + stockLine(have, stock), done: readiness(stock, have) >= 1 },
       { text: REACH_LABELS[o.type](o), done: !!o.reached, step: 'reach' },
-      { text: o.type === 'retrieve' ? 'Bring it home' : 'Back under gold', done: !!o.done }
+      { text: o.type === 'retrieve' ? 'Bring it home' : 'Back to shelter', done: !!o.done }
     ];
   }
 
@@ -321,10 +321,10 @@ var RZ = RZ || {};
   var WAIT_TASKS = {
     done: 'Nothing left on the board. Wait',
     'no route': 'No known way there. Wait',
-    tide: 'Wait out the tide under gold',
+    tide: 'Wait out the tide in shelter',
     window: 'Wait for a longer window',
     stores: 'Wait for the next ration at home',
-    mould: 'Let the gold burn the mould out'
+    mould: 'Rest in shelter till the mould burns out'
   };
 
   function waitPlan(clock, why) {
@@ -638,7 +638,7 @@ var RZ = RZ || {};
     return waitPlan(clock, 'window');
   }
 
-  // A place Zero sent them to, picked up from under gold.
+  // A place Zero sent them to, picked up from a safe house.
   function errandPlan(r, book, here, left, act) {
     var spot = r.errand;
     if (!spot) return null;
@@ -700,7 +700,7 @@ var RZ = RZ || {};
       }
     }
 
-    // Nobody sets out with the tide's mould still in them. Gold burns it out in a few seconds.
+    // Nobody sets out with the tide's mould still in them. Shelter burns it out in a few seconds.
     if (r.infection > 0) {
       weigh('Clean of the mould', 'not yet', false);
       return waitPlan(clock, 'mould');

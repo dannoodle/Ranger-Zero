@@ -17,7 +17,7 @@ var RZ = RZ || {};
     'Took the job because the last ranger owed them money.',
     'Has outlived two brothers and a dog.',
     'Taught school in a town that\'s under the violet now.',
-    'Says the gold hums. Nobody else can hear it.',
+    'Says the safe houses hum. Nobody else can hear it.',
     'Was a scavenger once. Doesn\'t mention it around the others.',
     'Walked in during a tide and can\'t say how.',
     'Lost a bet. Stayed anyway.',

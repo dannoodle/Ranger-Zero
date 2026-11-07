@@ -107,41 +107,41 @@ var RZ = RZ || {};
     setout_errand: { any: ['Going to take a look.', 'On my way.', 'Heading over.'] },
 
     safe: {
-      any: ['Under gold.', 'Back inside the ring.', 'Made it in.'],
-      cautious: ['Inside the ring. Good.'],
-      reckless: ['That was nothing.'],
-      greedy: ['Back with a full pack, more or less.']
+      any: ['Back at {place}.', 'Inside the ring at {place}.', '{place}. Boots off for a minute.'],
+      cautious: ['Safe at {place}. Good.'],
+      reckless: ['{place} again. That was nothing.'],
+      greedy: ['Back at {place} with a full pack, more or less.']
     },
     safe_close: {
-      any: ['Under gold. That was too close.', 'In! I\'m in.', 'I could feel it on my neck, Zero.', 'Gold. Gold. Thank you.'],
+      any: ['In at {place}. That was too close.', 'In! I\'m in.', 'I could feel it on my neck, Zero.', 'Made it. Don\'t ask me how.'],
       cautious: ['Never again. I said that last time.'],
       reckless: ['Ha! Still breathing.']
     },
     muse: {
-      any: ['Quiet out there.', 'The gold\'s warm tonight.', 'Counting rounds again.', 'I keep thinking about the map.',
-            'You ever sleep, Zero?', 'Nobody told me the mould has a smell.', 'Wish I\'d met {last}.',
-            'I\'ve started reading the journal from the front.', 'Somebody scratched a tally into this wall.',
-            'What were you, Zero, before all this?', 'Still here.', 'I can hear the ring ticking.'],
-      cautious: ['I\'ve checked the stash again.', 'Going over the route. There\'s always something.', 'Better an hour too early.'],
+      any: ['You ever sleep, Zero?', 'Nobody told me the mould has a smell.', 'Wish I\'d met {last}.',
+            'I\'ve started reading the journal from the front.', 'Somebody scratched a tally into this wall. I\'ve added mine.',
+            'What were you, Zero, before all this?', 'I can hear the ring growing, if I put my ear to it.',
+            'Ranger {count}. I keep writing the number and looking at it.', '{last}\'s handwriting gets smaller near the end.'],
+      cautious: ['Going over the route. There\'s always something.', 'Better an hour too early.'],
       greedy: ['I bet there\'s a rifle out past {site}.', 'Thinking about what all this is worth.', 'That stash would look better bigger.'],
       reckless: ['This is the worst part. The sitting.', 'How long do I have to stay in here?', 'I could have been there and back by now.']
     },
     muse_tide: {
       any: ['Here it comes. All that violet.', 'It\'s up against the ring now.', 'You can hear it, if you stop breathing.',
             'Beautiful, in a way. Don\'t write that down.', 'Everything out there is being eaten.'],
-      cautious: ['The gold\'s holding. It always holds. It\'s held so far.'],
+      cautious: ['The ring\'s holding. It always holds. It\'s held so far.'],
       greedy: ['There goes everything we didn\'t pick up.'],
       reckless: ['Come on then.']
     },
     walk: {
-      any: ['Quiet so far.', 'Good ground.', 'Nobody\'s been this way for a while.', 'Birds have stopped.', 'Keeping a steady pace.',
-            'I can see why they drew it this way.', 'The map\'s right, for once.', 'Zero, you still there?'],
+      any: ['Nobody\'s been this way for a while.', 'Birds have stopped.', 'The map\'s right, for once.', 'Zero, you still there?',
+            'Old boot prints. Not ours.', 'Everything the tide touched has gone grey.'],
       cautious: ['I don\'t like how quiet it is.', 'Watching my feet.'],
       greedy: ['Eyes open. Something always gets left behind.'],
       reckless: ['This is easy.']
     },
     walk_new: {
-      any: ['This bit isn\'t in the journal.', 'New ground. Writing it down as I go.', 'Nobody has drawn this.']
+      any: ['This bit isn\'t in the journal.', 'New ground. Drawing it as I go.', 'Nobody has drawn this.', 'Off the edge of the map now.']
     },
     walk_forest: { any: ['Trees are thick here. Can\'t see much.', 'Hate the woods. Everything could be anything.'] },
     walk_water: { any: ['Wet to the knees.', 'Slow going through the water.'] },
@@ -158,8 +158,14 @@ var RZ = RZ || {};
       reckless: ['Company at {place}.'],
       greedy: ['A camp at {place}. Camps have stores.']
     },
+    patrol_seen: {
+      any: ['Patrol, moving near {place}.', 'People on the road by {place}. Walking in file.', 'A patrol. They haven\'t seen me yet.'],
+      cautious: ['Patrol near {place}. Letting them pass.'],
+      reckless: ['A patrol. Here\'s hoping they come this way.'],
+      greedy: ['Patrol near {place}. They\'ll be carrying.']
+    },
     contact: {
-      any: ['They\'ve seen me.', 'Taking the shot.', 'Here we go.'],
+      any: ['They\'ve seen me.', 'Contact!', 'Shots. Getting down.', 'They\'re shooting, Zero.'],
       reckless: ['Come on then!', 'My kind of afternoon.'],
       cautious: ['I don\'t want this. Firing.']
     },
@@ -193,8 +199,8 @@ var RZ = RZ || {};
       reckless: ['Just a splash. Just a splash.'],
       cautious: ['No. No, no. It\'s on me.']
     },
-    mould_cured: { any: ['The gold\'s burned it out. I can breathe.', 'Clean. The gold took it.', 'It\'s gone. I can feel my hands again.'] },
-    eat: { any: ['Eating while I walk.', 'Food. Not good food.'] },
+    mould_cured: { any: ['The ring\'s burned it out. I can breathe.', 'Clean. The shelter took it.', 'It\'s gone. I can feel my hands again.'] },
+    eat: { any: ['Eating while I walk.', 'Food. Not good food.', 'Cold tin, eaten standing up.'] },
     hungry: { any: ['Getting hungry.', 'Should have brought more to eat.'], reckless: ['Food is for people who plan.'] },
     found: {
       any: ['Found {what}.', 'Picked up {what}.'],
@@ -202,7 +208,7 @@ var RZ = RZ || {};
       cautious: ['{what}. That\'ll help.']
     },
     found_spare: {
-      any: ['A {what}. Not for me, but someone back at the gold will want it.', 'Taking the {what} along. It can wait in a stash.'],
+      any: ['A {what}. Not for me, but someone back at the safe house will want it.', 'Taking the {what} along. It can wait in a stash.'],
       greedy: ['A {what}! Nobody leaves a {what} lying about.']
     },
     spare_left: { any: ['Leaving the {what} here. Someone will be glad of it.', 'One {what}, for the stash.'] },
@@ -265,19 +271,21 @@ var RZ = RZ || {};
       reckless: ['Up! Up up up!']
     },
     reached: {
-      any: ['{site}. I\'m here. I\'m actually here.', 'I can see all of it from up here, Zero.', 'Reached {site}. Now to get back and tell someone.'],
+      any: ['{site}. I\'m here. I\'m actually here.', 'I can see all of it from up here, Zero.', 'Reached {site}. Now to get back and tell someone.',
+            'Standing at {site}. Halfway, if I\'m honest.'],
       reckless: ['{site}! Who said it couldn\'t be done?'],
       cautious: ['{site}. Taking the reading. Then straight back.'],
       greedy: ['{site}. Nice view. Nothing worth taking.']
     },
     triumph: {
-      any: ['It\'s done. {site} is in the book.', 'Tell them, Zero. Tell all of them. {site}.', 'For everyone who didn\'t get this far.'],
+      any: ['It\'s done. {site} is in the book.', 'Tell them, Zero. Tell all of them. {site}.', 'For everyone who didn\'t get this far.',
+            'Cross {site} off, Zero. Use the good pen.', '{site}. Done. I want that in my handwriting.', 'That one\'s for {last}.'],
       reckless: ['Told you.'],
       cautious: ['Done. I\'d like to sit down now.']
     },
 
     last_tide: {
-      any: ['It\'s here. Zero, it\'s all...', 'Tell the next one to leave earlier.', 'It\'s not cold. Nobody said it wouldn\'t be cold.', 'So much violet.', 'I can see the gold from here.'],
+      any: ['It\'s here. Zero, it\'s all...', 'Tell the next one to leave earlier.', 'It\'s not cold. Nobody said it wouldn\'t be cold.', 'So much violet.', 'I can see the ring from here.'],
       reckless: ['Almost. I almost had it.'],
       cautious: ['I left in time. I did everything right.'],
       greedy: ['Should have dropped the pack.']
@@ -326,7 +334,7 @@ var RZ = RZ || {};
     },
 
     ack_turnback: {
-      any: ['Copy, Zero. Turning back.', 'If you say so. Coming in.', 'Heard. Heading for gold.'],
+      any: ['Copy, Zero. Turning back.', 'If you say so. Coming in.', 'Heard. Heading for shelter.'],
       cautious: ['Yes. Thank you. Coming in now.']
     },
     no_turnback: {
@@ -344,7 +352,7 @@ var RZ = RZ || {};
       cautious: ['Absolutely not.', 'I\'d rather be alive and late.']
     },
     pushon_nothing: { any: ['Push on to what, Zero? I\'m not headed anywhere.'] },
-    turnback_inside: { any: ['I\'m already under gold, Zero.', 'I\'m not going anywhere yet.'] },
+    turnback_inside: { any: ['I\'m already in shelter, Zero.', 'I\'m not going anywhere yet.'] },
     ack_warn: {
       any: ['Copy. Keeping clear of it.', 'Marked. I\'ll go round.', 'What did you see?'],
       cautious: ['Thank you. Going well around it.']
@@ -408,20 +416,23 @@ var RZ = RZ || {};
     return /\{\w+\}/.test(fill(text, vars));
   }
 
-  // Picks a line for this speaker, skipping lines they couldn't finish or that were just used.
-  function choose(sim, r, key, vars) {
+  // Picks a line for this speaker, skipping lines they couldn't finish and lines anyone has said
+  // lately. Hearing the same words again is worse than silence, so when everything is still fresh in
+  // the listener's ear the ranger says nothing, unless the line must be said: then the one said
+  // longest ago comes back.
+  function choose(sim, r, key, vars, must) {
     var set = LINES[key];
     if (!set) return null;
-    var pool = (set.any || []).concat(set[r.temperName] || []).filter(function (text) {
-      return !missing(text, vars) && sim.talkUsed[text] === undefined;
-    });
-    if (!pool.length) {
-      (set.any || []).concat(set[r.temperName] || []).forEach(function (text) { delete sim.talkUsed[text]; });
-      pool = (set.any || []).concat(set[r.temperName] || []).filter(function (text) { return !missing(text, vars); });
+    var rest = sim.cfg.voice.rest * sim.cfg.sim.ticksPerSecond;
+    var said = sim.talkUsed;
+    var all = (set.any || []).concat(set[r.temperName] || []).filter(function (text) { return !missing(text, vars); });
+    var pool = all.filter(function (text) { return said[text] === undefined || sim.tick - said[text] >= rest; });
+    if (!pool.length && must && all.length) {
+      pool = [all.reduce(function (oldest, text) { return said[text] < said[oldest] ? text : oldest; })];
     }
     if (!pool.length) return null;
     var text = sim.voiceRng.pick(pool);
-    sim.talkUsed[text] = true;
+    said[text] = sim.tick;
     return RZ.sentences(fill(text, vars));
   }
 
@@ -432,7 +443,7 @@ var RZ = RZ || {};
     RZ.emit(sim, 'say', { kind: kind, text: text, who: who });
   };
 
-  // Some lines always get said. Everything else waits its turn, so rangers don't babble.
+  // Urgent lines don't wait for a gap in the talk. Everything else waits its turn, so rangers don't babble.
   var URGENT = {
     contact: 1, grenade: 1, hurt_bad: 1, tide_seen: 1, tide_close: 1, tide_touch: 1, heal_mould: 1, turn_back: 1, push_on: 1, reached: 1, triumph: 1,
     old_seen: 1, old_kill: 1, struck: 1, right: 1, right_ignored: 1, wrong: 1, wrong_turnback: 1, safe_close: 1,
@@ -442,6 +453,16 @@ var RZ = RZ || {};
     hold_land: 1, release_land: 1, climb: 1, flee: 1, dash: 1, kill: 1, body_found: 1, first: 1, grave: 1
   };
 
+  // Lines that must be said even when every version has been heard lately: answers to Zero, and the
+  // moments a run is remembered by. Silence there would read as the radio being broken.
+  var MUST = {
+    ack_turnback: 1, no_turnback: 1, ack_pushon: 1, no_pushon: 1, pushon_nothing: 1, turnback_inside: 1,
+    ack_warn: 1, no_warn: 1, ack_send: 1, no_send: 1, no_time: 1, ack_crate: 1, crate_later: 1, crate_stash: 1,
+    crate_got: 1, right: 1, right_ignored: 1, wrong: 1, wrong_turnback: 1, board_new: 1, hold_land: 1, release_land: 1,
+    first: 1, first_line: 1, meet_trust: 1, meet_doubt: 1, new_land: 1, land_done: 1, reached: 1, triumph: 1,
+    cleared: 1, not_cleared: 1, relic_got: 1, relic_missing: 1, old_seen: 1
+  };
+
   RZ.speak = function (sim, r, key, vars, force) {
     if (!r || !r.alive && !force) return false;
     var c = sim.cfg.voice;
@@ -449,9 +470,10 @@ var RZ = RZ || {};
     var voice = r.voice;
     var urgent = force || URGENT[key];
     var lastKind = voice.keys[key];
-    if (!force && lastKind !== undefined && sim.tick - lastKind < c.cooldown * perSecond) return false;
+    var cooldown = c.cooldowns[key] || c.cooldown;
+    if (!force && lastKind !== undefined && sim.tick - lastKind < cooldown * perSecond) return false;
     if (!urgent && sim.tick - voice.last < c.gap * perSecond) return false;
-    var text = choose(sim, r, key, vars);
+    var text = choose(sim, r, key, vars, force || MUST[key]);
     if (!text) return false;
     voice.last = sim.tick;
     voice.keys[key] = sim.tick;
@@ -482,14 +504,14 @@ var RZ = RZ || {};
     var walk = shelter ? Math.round(shelter.seconds) : null;
     var timing = left > 0 && walk !== null && walk > 1
       ? ' I reckon ' + left + ' seconds before I have to be in, and ' + walk + ' to walk to ' + shelter.place.name + '.' : '';
-    if (r.mode === 'shelter') return 'Getting under gold. That\'s the whole plan.' + timing;
+    if (r.mode === 'shelter') return 'Getting to shelter. That\'s the whole plan.' + timing;
     if (r.mode === 'climb') return 'Climbing. If I get high enough it might not reach me.';
     if (r.mode === 'fight') return 'Right now? Staying alive.';
     if (r.mode === 'flee') return 'Getting away from them, then working out the rest.';
     if (!plan || plan.kind === 'wait') {
       if (plan && plan.why === 'tide') return 'Sit tight until the tide has gone through, then see what\'s what.';
       if (plan && plan.why === 'stores') return 'The stores are empty. I\'m waiting for the next ration.';
-      if (plan && plan.why === 'mould') return 'Letting the gold burn the mould out of me. Nobody goes out with it still in them.';
+      if (plan && plan.why === 'mould') return 'Resting in shelter till the mould burns out of me. Nobody goes out with it still in them.';
       if (plan && plan.why === 'done') return 'Nothing. The board\'s done. I\'m waiting to see what comes for it.';
       return 'Waiting for a window long enough for ' + book.mission.name + '. The journal gives me ' + Math.max(0, left) + ' seconds on this one.';
     }
