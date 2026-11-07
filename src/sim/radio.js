@@ -77,6 +77,11 @@ var RZ = RZ || {};
       if (sim.ranger.alive) sim.ranger.inbox.push({ type: sim.hold ? 'hold' : 'release' });
       return;
     }
+    // The tide length slider. It changes the world, not what anyone hears, so it's not said aloud.
+    if (call.type === 'calm') {
+      if (RZ.setCalm(sim, call.seconds)) RZ.emit(sim, 'calm', { seconds: sim.tide.calm });
+      return;
+    }
     if (call.type === 'board') {
       RZ.addTalk(sim, 'zero', SAYS.board, 'Zero');
       RZ.newBoard(sim);

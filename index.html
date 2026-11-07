@@ -30,6 +30,11 @@
     <div class="group" id="speeds"><span class="label">speed</span></div>
     <div class="group" id="views"><span class="label">view</span></div>
     <div class="group" id="cameras"><span class="label">camera</span></div>
+    <label class="group" id="calmGroup" title="Seconds of calm between one tide and the next. The rangers aren't told: they find out by timing tides.">
+      <span class="label">calm</span>
+      <input type="range" id="calmSlider" aria-label="Calm between tides, in seconds">
+      <span id="calmValue"></span>
+    </label>
     <div class="group">
       <button type="button" id="historyButton" title="Key H">history</button>
       <button type="button" id="sound" title="Key N">sound on</button>

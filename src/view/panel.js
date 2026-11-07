@@ -89,6 +89,7 @@ var RZ = RZ || {};
     if (r.alive) {
       html += meter('health', r.hp, cfg.ranger.hpMax, 'hp');
       html += meter('food', r.energy, cfg.ranger.energyMax, 'energy');
+      if (r.infection > 0) html += meter('mould', r.infection, 100, 'mould');
     }
     byId('rMeters').innerHTML = html;
     byId('rPack').textContent = r.alive

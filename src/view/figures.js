@@ -110,6 +110,16 @@ var RZ = RZ || {};
     ctx.beginPath();
     ctx.arc(x, y, size * 2.2, 0, Math.PI * 2);
     ctx.fill();
+    // The tide's mould on them: a violet haze that pulses, stronger the deeper it has got in.
+    if (r.infection > 0) {
+      var mould = r.infection / 100;
+      ctx.fillStyle = look.mould;
+      ctx.globalAlpha = Math.min(0.8, 0.2 + mould * 0.6) * (0.75 + 0.25 * Math.sin(this.sim.tick * 0.5));
+      ctx.beginPath();
+      ctx.arc(x, y, size * (1.3 + mould * 0.9), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     var coat = look.temper[r.temperName] || look.ranger;
     this.figure(x, y, this.facing, size, coat, look.ranger, { pack: '#3a342b' });
     if (!this.speech) this.label(r.first, x, y - size * 2.4, look.ranger, 12);
@@ -352,6 +362,7 @@ var RZ = RZ || {};
       ctx.fillRect(0, 0, w, h);
     }
     if (red > 0.01) vignette('170, 30, 20', red);
+    if (r.infection > 0) vignette('120, 50, 210', 0.15 + r.infection / 100 * 0.45);
     if (sim.tide.phase !== 'calm' && !sim.world.safeMask[r.x + r.y * sim.world.w]) {
       var gap = sim.tide.front[r.x + r.y * sim.world.w] - sim.tide.level;
       if (gap > 0 && gap < 0.2) vignette('120, 50, 210', (0.2 - gap) * 3);

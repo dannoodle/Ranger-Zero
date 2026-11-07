@@ -52,7 +52,9 @@ var CFG = {
   },
 
   tide: {
-    calm: 110,               // quiet time between one tide leaving and the next starting
+    calm: 150,               // quiet time between one tide leaving and the next starting
+    calmMin: 60,             // the slider's range. Zero can change the calm while a run goes on
+    calmMax: 300,
     calmJitter: 0.12,        // each calm spell varies by this fraction
     surge: 40,
     hold: 10,
@@ -61,7 +63,16 @@ var CFG = {
     waterDrag: 0.6,          // it runs quickly along water
     noiseScale: 10,          // cells per wobble in the front
     noiseDrag: 1.4,
-    graceSeconds: 1          // how long a ranger lasts once it reaches them
+    // Caught in the open, a ranger is infected rather than killed outright. The tide burns while it
+    // touches them, and the mould it leaves keeps draining health until gold or a medkit deals with it.
+    burn: 4,                 // health per second while the tide is on them
+    infectRate: 10,          // infection per second in the tide, out of 100
+    drain: 0.04,             // health per second for each point of infection
+    fade: 0.15,              // infection lost per second out in the open, on its own
+    goldCure: 4,             // infection burned off per second under an outpost's gold
+    homeCure: 12,
+    medCure: 40,             // infection a medkit clears
+    medAt: 25                // infection at which a ranger out in the open uses a medkit on it
   },
 
   safe: {
@@ -173,9 +184,11 @@ var CFG = {
   },
 
   planner: {
-    tideGuess: 95,           // first guess at the calm spell, before anyone has timed one
+    tideGuess: 130,          // first guess at the calm spell, before anyone has timed one
     tideClearSeconds: 4,     // no tide in view for this long means it has passed
     tideSampleFloor: 0.6,    // shorter calm spells than this share of the estimate are ignored
+    tideLearnDown: 0.6,      // how far one timed calm moves the estimate, when it came early
+    tideLearnUp: 0.4,        // and when it came late. Lower is warier, and slower to notice longer calms
     minimumWindow: 12,       // don't bother setting out with less time than this
     buffer: 6,               // spare seconds kept on any trip
     routeSlack: 0.08,        // walks take longer than they look
@@ -197,22 +210,26 @@ var CFG = {
     surveyReach: 1,
     patienceMax: 8,
     patienceSeconds: 14,     // shortfall in the window accepted per tide already waited out
+    patienceShare: 0.2,      // but never more than this share of the window: past that, the trip can't be done
     patienceSpent: 2,        // tides of patience used up by setting out
     pushSeconds: 16,         // how near the site a ranger will ignore the clock, at normal nerve
+    pushMax: 30,             // and never further than this, however bold the line has become
     fightNerve: 0.7,         // fight if the expected damage is under this share of health and meds
     fleeDistance: 12,
     fleeTicks: 30,
     fleesBeforeDash: 1,      // times a survey ranger runs from a camp before running through it
     climbWhenTideWithin: 6,
     climbWhenShelterBeyond: 12,
-    grabRange: 7,
-    grabMinimumTime: 30,
+    grabRange: 8,            // cells; anything nearer is worth picking up, if the detour still beats the tide
+    keepRounds: 30,          // never leaves rounds below this to make room for something better
     bodyRange: 14,           // how far off the road a ranger will go for a body in view
     forageMinimum: 26,       // the least time worth spending on a short trip
     forageLinger: 25,        // ticks spent searching at the far end
     forageShare: 0.8,        // share of the time left a forage trip may use
     forageRounds: 8,         // nobody walks out with an empty gun
     stockPatience: 340,      // seconds without an attempt before going with what there is
+    hungerWait: 90,          // a tide passing, with time to spare: food for the window after next, or go home now
+    foodLow: 3,              // fewer meals than this at hand, and food is worth a detour
     campAvoidRadius: 11,
     campAvoidCost: 6,
     anomalyAvoidCost: 30,
@@ -223,6 +240,7 @@ var CFG = {
     tideMarginStart: 0.05,
     tideMarginStep: 0.07,    // each tide death widens the margin
     tideMarginEase: 0.025,   // each turn-back narrows it again
+    tideMarginCaught: 0.035, // caught by the tide and lived: a smaller lesson than dying of it
     tideMarginMax: 0.25,
     foodExtraMax: 4,
     ammoStep: 12,
@@ -243,8 +261,8 @@ var CFG = {
         tideMargin: 0.05,    // added to the journal's margin
         fightNerve: 0.75,
         pushSeconds: 0.5,
-        grabRange: 0.8,
-        grabTime: 1.3,
+        grabRange: 1,
+        grabTime: 1.5,       // spare time wanted in hand for a detour, as a multiple of the buffer
         leeway: 0.6,         // how short of stores they'll set out
         ammo: 4,
         forage: 0.7,         // share of a calm spell they'll spend foraging
@@ -359,6 +377,8 @@ var CFG = {
       walk: 0.5,             // per second from the staging post to the target
       danger: 12,            // per known camp near the target, more for each that has beaten us
       stick: 30,             // staying with the current objective, so supplies don't scatter
+      tooLong: 50,           // a round trip longer than the journal's window
+      turnback: 10,          // per turn-back on this objective, up to four
       dangerRadius: 14
     }
   },
@@ -452,6 +472,7 @@ var CFG = {
     blast: '#ffb347',
     scav: '#e4593f',
     anomaly: '#cf9bff',
+    mould: '#a55cff',        // the tide's infection on a ranger
     body: '#d9694f',
     ranger: '#fbf7e8',
     rangerEdge: '#20262b',
@@ -502,7 +523,8 @@ var CFG = {
       talk: 1,               // for a few seconds after Zero speaks
       talkSeconds: 4
     },
-    cardSeconds: 12          // a card closes by itself after this long
+    cardSeconds: 12,         // a card closes by itself after this long
+    calmStep: 10             // the tide length slider moves in steps of this many seconds
   }
 };
 

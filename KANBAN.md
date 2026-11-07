@@ -12,7 +12,7 @@ An autonomous top-down survival sim. See [docs/concept.md](docs/concept.md) for 
 - **Moving a card:** cut the line and paste it into the new column. When it reaches Done, tick the box and add the date: `- [x] R-001 Short description (2026-11-06)`.
 - **Done** stays on this board until it gets long, then older cards move to `KANBAN-archive.md`.
 
-**Next ID:** R-079
+**Next ID:** R-086
 
 ---
 
@@ -77,6 +77,12 @@ Phase C: supply and looting strategy.
 - [ ] R-061 New weapons made the first mission easier: median attempts fell from 3 to 2, against the brief's target of 3
   20-seed batch, both runs with the duplicate pistol fix. Scavenger deaths rose from 46 to 59, so rangers take on more fights and win more of them. Levers: find chances in `items.finds`, or `fightLooksGood` counting each grenade as one enemy removed.
 
+### From watching a long run (2026-11-07)
+
+- [ ] R-084 Anomaly deaths rose from 56 to 77 with the 150s calm, over the same sim time
+  With the fixes but the old 110s calm it stays at 56, so it's the longer calm: more walking per tide. Tides per death fell from 8.1 to 5.1. Levers: `anomaly.noticeChance`, or accept it as the price of longer trips.
+- [ ] R-085 A ranger caught far from gold runs for it through the tide, 36 seconds in one run. Climbing out of the tide first and then walking may live more often, and read better.
+
 ### After the first version
 
 - [ ] R-019 Notes fade with each tide, shown as fading ink on the map
@@ -87,8 +93,21 @@ Phase C: supply and looting strategy.
 - [ ] R-024 Trader at home: sell loot, buy gear with credits
   Part of the objectives work, Phase C: a small version that gives looting a value.
 - [ ] R-027 Live config sliders on screen (undecided: the config file may be enough)
+  The calm slider (R-079) is the first. Others only if a value turns out to be worth changing while watching.
 
 ## Done
+
+- [x] R-079 Longer calm by default, and a tide length slider that changes it as a logged call (2026-11-07)
+  Calm 110s to 150s, and the first guess 95s to 130s. The slider runs from 60s to 300s, stretches a calm already under way, and is logged like the board switches. Rangers aren't told: the journal learns it by timing tides.
+- [x] R-081 Hunger in the planner: nobody waits at an outpost without food, and a line short of food goes looking for it (2026-11-07)
+  A ranger who couldn't last to the window after next and still walk home goes home to eat while there's a window. A ranger short at the staging post only walks home if the journal says home has some of what's short; otherwise they search nearby. Home with no food searches for food instead of hauling rounds. Food lying about counts for more when food is low. New rangers start at an outpost only if it holds food.
+- [x] R-080 The journal's sense of the tide: stop the same trip failing on the window again and again (2026-11-07)
+  The estimate now rises 0.4 of the way towards a later tide, not 0.2. Patience can stretch a trip by at most a fifth of the window, not 112s. Pushing on is capped at 30s from the site, however bold the line. The planner marks down an objective whose round trip is longer than the window, and each turn-back on it. Worst seen before: attempt 41 at one site. After, on the same seeds: at most 5.
+- [x] R-082 Tide infection: the tide drains health while it touches a ranger and for a while after, instead of killing in a second (2026-11-07)
+  4 health a second while in it, and infection builds at 10 a second. Infection drains 0.04 health a second per point, fades slowly in the open, burns out under gold, and a medkit clears 40. A ranger in the tide runs for gold, uses medkits once out of it or when health is low, writes up being caught, and waits under gold until clean. Being caught and living widens the tide margin a little.
+- [x] R-083 Rangers pick up items near them whenever there's time, including on the way home after an objective (2026-11-07)
+  Walking home with time in hand no longer counts as running for it, which had shut off picking things up. The fixed 30s floor is now a check that the detour still beats the tide. A full pack makes room for food, medkits, grenades or a better gun by leaving loot, a gun another carried gun beats at every distance (a pistol beside a rifle), then rounds above 30.
+  Batch, 20 seeds, same sim time: deaths 141 to 141 (tide 49 to 18, anomaly 56 to 77), objectives 233 to 363, boards finished 2 of 100 to 15 of 81. With the old 110s calm the fixes alone give 109 deaths and 301 objectives. See docs/plan.md.
 
 - [x] R-001 Project skeleton: `index.html`, config, seeded generator, sim and render split, Node loader for the tools (2026-11-06)
 - [x] R-002 Map generation: elevation, water, trees and villages, with home at the centre and three outposts (2026-11-06)

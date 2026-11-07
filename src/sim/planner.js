@@ -42,13 +42,25 @@ var RZ = RZ || {};
     return leg;
   };
 
+  // The usable part of a calm spell, by the journal's estimate of the tide, less the margin.
+  RZ.usableWindow = function (book, r) {
+    var margin = Math.max(0, book.lessons.tideMargin + (r ? r.temper.tideMargin : 0));
+    return book.tide.window * (1 - margin);
+  };
+
   // Seconds before a ranger should be under gold, by the journal's estimate of the tide.
   RZ.timeLeft = function (book, seconds, r) {
     var t = book.tide;
     if (t.active) return 0;
-    var margin = Math.max(0, book.lessons.tideMargin + (r ? r.temper.tideMargin : 0));
-    return t.lastClear + t.window * (1 - margin) - seconds;
+    return t.lastClear + RZ.usableWindow(book, r) - seconds;
   };
+
+  // Seconds a ranger can go before starving, counting what's in the belly and the meals at hand.
+  function foodSeconds(r, meals) {
+    var c = r.cfg;
+    var perMeal = (c.items.foodEnergy / c.ranger.energyMax) * r.hungerSeconds;
+    return r.energy / c.ranger.energyMax * r.hungerSeconds + meals * perMeal;
+  }
 
   RZ.nearestSafe = function (r, book, from) {
     var best = null;
@@ -181,10 +193,18 @@ var RZ = RZ || {};
     var danger = dangerNear(r, o, w.dangerRadius);
     var reward = RZ.rewardValue(cfg, o, book.places[0]);
     var prefer = (t.prefer && t.prefer[o.type]) || 0;
+    // A trip that doesn't fit the window only gets done by luck, and each turn-back says so again.
+    var trip = o.type === 'stock' ? 0 : staging.seconds * 2 * (1 + cfg.planner.routeSlack) + cfg.planner.buffer;
+    var window = RZ.usableWindow(book, r);
+    var tooLong = trip > window;
+    var turnbacks = Math.min(4, o.turnbacks || 0);
     var score = w.reward * (t.reward || 1) * reward + w.ready * ready - w.walk * walk -
-      w.danger * (t.danger || 1) * danger + prefer + (o === current ? w.stick : 0);
+      w.danger * (t.danger || 1) * danger + prefer + (o === current ? w.stick : 0) -
+      (tooLong ? w.tooLong : 0) - w.turnback * turnbacks;
     o.checks = checklist(o, staging, need, have);
     var bits = [Math.round(ready * 100) + '% ready', secs(walk) + (o.type === 'stock' ? ' haul' : ' from ' + staging.place.name)];
+    if (tooLong) bits.push('round trip ' + secs(trip) + ', longer than the window');
+    if (turnbacks) bits.push((o.turnbacks === 1 ? 'turned back once' : 'turned back ' + o.turnbacks + ' times'));
     if (danger) bits.push(danger + ' danger');
     if (prefer) bits.push(prefer > 0 ? 'suits a ' + r.temperName + ' ranger' : 'not for a ' + r.temperName + ' ranger');
     if (o === current) bits.push('already on it');
@@ -303,7 +323,8 @@ var RZ = RZ || {};
     'no route': 'No known way there. Wait',
     tide: 'Wait out the tide under gold',
     window: 'Wait for a longer window',
-    stores: 'Wait for the next ration at home'
+    stores: 'Wait for the next ration at home',
+    mould: 'Let the gold burn the mould out'
   };
 
   function waitPlan(clock, why) {
@@ -466,6 +487,34 @@ var RZ = RZ || {};
     return plan;
   }
 
+  // Home feeds whoever is there, and an outpost only feeds them from its stash. A ranger who couldn't
+  // last until the window after next, and still walk home, goes now while there's a window to go in.
+  function hungerPlan(r, book, here, act, clock, left) {
+    var p = r.cfg.planner;
+    var home = book.places[0];
+    var leg = RZ.legSeconds(r, here, home);
+    if (!leg) return null;
+    var stash = act.stashHere() || RZ.emptyPack();
+    var fed = foodSeconds(r, r.pack.food + stash.food);
+    var walk = leg.seconds * (1 + p.routeSlack) + p.buffer;
+    var need = Math.max(0, left) + p.hungerWait + walk;
+    if (fed >= need) return null;
+    weigh('Food to wait here', secs(fed) + ' before hunger, need ' + secs(need) + ' to see the next window and walk home', false);
+    if (walk > left) return null;
+    task('Go home to eat');
+    var plan = makeSteps('fetch', [{ do: 'go', x: home.x, y: home.y, near: r.cfg.safe.radius - 1 }]);
+    journalPlan(r, book, clock, plan, 'hungry' + here.id + ':' + book.tide.lastClear,
+      'Nothing to eat at ' + here.name + '. Going home before hunger decides for me.');
+    act.say('setout_hungry', { place: here.name });
+    return plan;
+  }
+
+  // Whether home holds any of what's short, by the journal.
+  function homeHelps(book, short) {
+    var home = ledger(book, book.places[0]);
+    return ['food', 'ammo', 'med'].some(function (kind) { return short[kind] > 0 && home[kind] > 0; });
+  }
+
   function fetchPlan(r, book, here, clock, act) {
     var home = book.places[0];
     task('Go home for more supplies');
@@ -530,12 +579,14 @@ var RZ = RZ || {};
     var p = r.cfg.planner;
     var best = null;
     var bestValue = -1;
+    // Short of food, and food lying about is worth a longer walk than anything else.
+    var hungry = r.pack.food + ledger(book, here).food < p.foodLow;
     Object.keys(map.items).forEach(function (key) {
       var item = map.items[key];
       if (item.kind === 'loot' && r.temperName !== 'greedy') return;
       var leg = RZ.legSeconds(r, here, item);
       if (!leg || leg.seconds * 2 + p.buffer > usable) return;
-      var value = (item.kind === 'crate' ? 200 : 100) - leg.seconds;
+      var value = (item.kind === 'crate' ? 200 : 100) + (hungry && item.kind === 'food' ? 60 : 0) - leg.seconds;
       if (value > bestValue) {
         bestValue = value;
         best = { x: item.x, y: item.y, near: 0, name: null };
@@ -646,6 +697,17 @@ var RZ = RZ || {};
       }
     }
 
+    // Nobody sets out with the tide's mould still in them. Gold burns it out in a few seconds.
+    if (r.infection > 0) {
+      weigh('Clean of the mould', 'not yet', false);
+      return waitPlan(clock, 'mould');
+    }
+
+    if (!here.isHome) {
+      var hungry = hungerPlan(r, book, here, act, clock, left);
+      if (hungry) return hungry;
+    }
+
     var open = book.objectives.filter(function (o) { return !o.done; });
     if (!open.length) {
       weigh('Anything left on the board', 'no, every objective is done', false);
@@ -713,7 +775,7 @@ var RZ = RZ || {};
       weigh(need.exact ? 'Stores the board wants' : 'Stores for the attempt', stockLine(available, need) + ': ' + verdict, ready || homeWillDo || hurry);
       if (!need.exact && (ready || homeWillDo || hurry)) {
         var trip = staging.seconds * 2 * (1 + p.routeSlack) + p.buffer;
-        var nerve = book.patience * p.patienceSeconds;
+        var nerve = Math.min(book.patience * p.patienceSeconds, RZ.usableWindow(book, r) * p.patienceShare);
         brief.trip = trip;
         weigh('Window for the round trip', 'need ' + secs(trip) + ', have ' + secs(left) + (nerve ? ' + ' + secs(nerve) + ' of patience' : ''), trip <= left + nerve);
         if (trip <= left + nerve) return attemptPlan(r, book, here, staging, act, clock, need);
@@ -721,8 +783,15 @@ var RZ = RZ || {};
       }
       var homeLeg = RZ.legSeconds(r, here, book.places[0]);
       var homeOk = homeLeg && homeLeg.seconds + p.buffer <= left;
-      weigh('Home for more', homeLeg ? secs(homeLeg.seconds) + ' walk, have ' + secs(left) : 'no known way', !!homeOk);
-      if (homeOk) return fetchPlan(r, book, here, clock, act);
+      // A walk home for something home hasn't got is how a line wears out a path and gets nowhere.
+      var helps = homeHelps(book, short);
+      weigh('Home for more', !homeLeg ? 'no known way' : !helps ? 'home is short of it too, by the journal' :
+        secs(homeLeg.seconds) + ' walk, have ' + secs(left), !!homeOk && helps);
+      if (homeOk && helps) return fetchPlan(r, book, here, clock, act);
+      if (!helps) {
+        var search = scavengePlan(r, book, here, clock, left, act);
+        if (search) return search;
+      }
       return forageOr(r, book, here, clock, left, act, waitPlan(clock, 'window'));
     }
 
@@ -743,6 +812,12 @@ var RZ = RZ || {};
     weigh(staging.place.name + ' stocked, by the journal', stockLine(ahead, stockNeed) +
       (stocked ? (anyShort(gap) ? ': close enough' : '') : hurry ? ': short, but waited ' + secs(waited) : ': short'), stocked || hurry);
     if (!stocked && !hurry) {
+      // Food is what's missing and home has none. Carrying rounds up won't fix that.
+      if (here.isHome && gap.food > 0 && stashHere.food === 0) {
+        weigh('Food at home to send up', 'none', false);
+        var forFood = scavengePlan(r, book, here, clock, left, act);
+        if (forFood) return forFood;
+      }
       var can = {
         food: Math.min(gap.food + p.travelFood, stashHere.food),
         ammo: Math.min(gap.ammo, stashHere.ammo),

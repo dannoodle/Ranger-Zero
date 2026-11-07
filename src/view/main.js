@@ -164,6 +164,35 @@
     });
   }
 
+  // The tide length slider. Dragging only moves the number; letting go sends one logged call,
+  // so a replay sees the same change on the same tick.
+  var calmSlider = document.getElementById('calmSlider');
+  var calmValue = document.getElementById('calmValue');
+  var calmDragging = false;
+
+  function setupCalmSlider() {
+    calmSlider.min = CFG.tide.calmMin;
+    calmSlider.max = CFG.tide.calmMax;
+    calmSlider.step = CFG.look.calmStep;
+    calmSlider.value = sim.tide.calm;
+    calmValue.textContent = sim.tide.calm + 's';
+    calmSlider.addEventListener('input', function () {
+      calmDragging = true;
+      calmValue.textContent = calmSlider.value + 's';
+    });
+    calmSlider.addEventListener('change', function () {
+      calmDragging = false;
+      sendCall({ type: 'calm', seconds: Number(calmSlider.value) });
+    });
+  }
+
+  function syncCalmSlider() {
+    if (calmDragging) return;
+    if (Number(calmSlider.value) !== sim.tide.calm) calmSlider.value = sim.tide.calm;
+    var text = sim.tide.calm + 's';
+    if (calmValue.textContent !== text) calmValue.textContent = text;
+  }
+
   function sendCall(call) {
     audio.start();
     RZ.queueCall(sim, call);
@@ -352,6 +381,8 @@
     } else if (event.type === 'reward') {
       if (calm) overlays.toast(event.inStash ? 'A reward came into the stash' : 'A reward cache turned up', 'gold', 3.5);
       audio.play('crate');
+    } else if (event.type === 'calm') {
+      overlays.toast('Calm spells now last about ' + event.seconds + 's', 'violet', 3);
     } else if (event.type === 'board') {
       overlays.toast('A new board', 'gold', 4);
     } else if (event.type === 'old-rise') {
@@ -436,6 +467,7 @@
     panel.update();
     storeCard.update();
     boardBox.update();
+    syncCalmSlider();
     audio.update(soundState());
     document.body.dataset.pace = running;
     requestAnimationFrame(frame);
@@ -451,6 +483,7 @@
   setView(VIEWS.some(function (view) { return view.id === options.view; }) ? options.view : 'dual');
   setCamera(options.camera === 'map' ? 'map' : 'auto');
   setupSeedForm();
+  setupCalmSlider();
   setupRadio();
   setupMap();
   setupKeys();

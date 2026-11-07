@@ -109,6 +109,32 @@ Bugs found by watching, not by the numbers:
 - New rangers at an outpost had rounds and no gun. Haulers now leave a sidearm.
 - Rangers stashed every round and walked out empty. They now keep some for short trips.
 
+## From watching a long run (2026-11-07)
+
+A long run showed the tide deciding almost everything. Rangers set out on trips that didn't fit the window, turned back, and tried again: one site reached attempt 41. Rangers started at outposts with no food and starved waiting there, and others walked between home and an outpost hauling rounds, because the food the outpost needed wasn't at home either. What changed (R-079 to R-083):
+
+- **A longer calm, and a slider for it.** 150 seconds between tides, not 110, and Zero can set anything from 60 to 300 while the run goes on. The slider is a logged call, like the board switches. Rangers aren't told: the journal learns the new length by timing tides, and it now learns a longer calm twice as fast as before.
+- **The tide infects instead of killing.** It burns while it touches a ranger, and leaves mould that keeps draining health until gold burns it out or a medkit clears some of it. A ranger caught in it runs for gold, and lives if it's close enough. A ranger who lives writes it up, and the journal widens its margin a little.
+- **Trips that fit the window.** Patience can stretch a trip by a fifth of the window at most, pushing on is capped at 30 seconds from the site, and the planner marks down an objective whose round trip is longer than the window, and each turn-back on it.
+- **Hunger.** A ranger who couldn't last to the window after next goes home to eat while there's a window to do it in. A ranger only walks home for supplies home actually has, by the journal. New rangers only start at an outpost with food in it.
+- **Picking things up.** Walking home with time in hand used to count as running for it, which stopped rangers picking anything up after an objective. Now any detour that still beats the tide is taken, and a full pack makes room by leaving loot, a gun another carried gun beats at every distance, or spare rounds.
+
+The batch, 20 seeds and 60 rangers over the same sim time:
+
+| | Before | Fixes, old 110s calm | Fixes and 150s calm |
+|---|---|---|---|
+| Tides | 883 | 883 | 722 |
+| Deaths | 141 | 109 | 141 |
+| By the tide | 49 | 21 | 18 |
+| By anomalies | 56 | 56 | 77 |
+| By scavengers | 34 | 28 | 37 |
+| By old selves | 2 | 4 | 9 |
+| Objectives done | 233 | 301 | 363 |
+| Boards finished | 2 of 100 | 2 of 100 | 15 of 81 |
+| Tides per death | 6.3 | 8.1 | 5.1 |
+
+The fixes on their own cost fewer lives and finish more. The longer calm finishes more again and lets boards be done before the greater tide, but each tide is longer, so more walking happens per tide and more of it ends in a pocket (R-084).
+
 ## Rules this has to keep
 
 - Sim code stays free of the DOM, and ranger logic still never sees the sim.

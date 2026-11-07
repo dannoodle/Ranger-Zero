@@ -58,7 +58,7 @@ function chooser(seed) {
 
 function randomCalls(seed, ticks, count) {
   const pick = chooser(seed + 77);
-  const types = ['turnback', 'pushon', 'warn', 'send', 'crate', 'how', 'plan', 'know', 'zero', 'recruit', 'hold', 'board'];
+  const types = ['turnback', 'pushon', 'warn', 'send', 'crate', 'how', 'plan', 'know', 'zero', 'recruit', 'hold', 'board', 'calm'];
   const script = [];
   for (let n = 0; n < count; n++) {
     const type = types[pick(types.length)];
@@ -69,6 +69,7 @@ function randomCalls(seed, ticks, count) {
     }
     if (type === 'recruit') call.pick = pick(3);
     if (type === 'hold') call.on = pick(2) === 1;
+    if (type === 'calm') call.seconds = CFG.tide.calmMin + 10 * pick((CFG.tide.calmMax - CFG.tide.calmMin) / 10 + 1);
     script.push(call);
   }
   return script.sort((a, b) => a.tick - b.tick);
@@ -173,6 +174,82 @@ section('The tide', () => {
   check('ridges flood later than valleys', mean(ridge) > mean(valley), mean(ridge).toFixed(3) + ' vs ' + mean(valley).toFixed(3));
 });
 
+section('Tide infection', () => {
+  const place = (r, x, y) => { r.x = r.fromX = x; r.y = r.fromY = y; r.path = null; r.progress = 0; };
+  const sim = RZ.createSim(CFG, 5);
+  while (sim.tide.phase !== 'hold') RZ.stepSim(sim);
+  const { w, safeMask } = sim.world;
+  let cell = -1;
+  for (let i = 0; i < safeMask.length && cell < 0; i++) if (!safeMask[i] && RZ.tideCovers(sim, i) && sim.world.reach[i]) cell = i;
+  const r = sim.ranger;
+  place(r, cell % w, Math.floor(cell / w));
+  r.hp = CFG.ranger.hpMax;
+  for (let t = 0; t < CFG.sim.ticksPerSecond * 2; t++) RZ.stepSim(sim);
+  check('two seconds in the tide is not death', r.alive && r.hp < CFG.ranger.hpMax && r.infection > 0, 'hp ' + r.hp.toFixed(1) + ', infection ' + r.infection.toFixed(1));
+  let longest = 0;
+  const caught = RZ.createSim(CFG, 5);
+  while (caught.tide.phase !== 'hold') RZ.stepSim(caught);
+  const c = caught.ranger;
+  for (let t = 0; t < 600 && c.alive; t++) {
+    place(c, cell % w, Math.floor(cell / w));
+    c.pack.med = 0;
+    RZ.stepSim(caught);
+    longest = t;
+  }
+  const record = caught.rangers.find(entry => entry.no === c.no);
+  check('staying in it kills, after a while', !c.alive && record.cause === 'tide' && longest > 50, 'lasted ' + longest + ' ticks, ' + record.cause);
+  const home = sim.world.home;
+  place(r, home.x, home.y);
+  r.infection = 60;
+  const hp = r.hp;
+  for (let t = 0; t < CFG.sim.ticksPerSecond * 10; t++) RZ.stepSim(sim);
+  check('gold burns the mould out', r.infection === 0 && r.hp > hp - 30, 'infection ' + r.infection.toFixed(1));
+  let lived = 0;
+  for (let seed = 1; seed <= options.seeds; seed++) {
+    lived += run(seed, options.ticks * 2).book.entries.filter(e => /The tide caught me out/.test(e.text)).length;
+  }
+  check('rangers are caught by the tide and live (' + lived + ' times)', lived > 0);
+});
+
+section('Picking things up', () => {
+  const sim = RZ.createSim(CFG, 2);
+  const r = sim.ranger;
+  const at = { x: r.x + 6, y: r.y };
+  r.x = r.fromX = at.x;
+  r.pack = Object.assign(RZ.emptyPack(), { food: 5, med: 1, ammo: 40, weapons: ['pistol', 'rifle'] });
+  r.pack.food += Math.floor(r.capacity - RZ.packWeight(CFG, r.pack));
+  r.weapon = 'rifle';
+  const items = sim.items.length;
+  RZ.addItem(sim, at.x, at.y, 'med', 1);
+  const taken = RZ.pickUp(sim, r, CFG.planner.keepRounds);
+  check('a full pack makes room for a medkit', taken.indexOf('1 med') >= 0 && r.pack.med === 2, taken.join(', '));
+  check('by leaving the spare pistol, not rounds', r.pack.weapons.join() === 'rifle' && r.pack.ammo === 40 &&
+    sim.items.length === items + 1 && sim.items[sim.items.length - 1].weapon === 'pistol');
+  check('never over capacity', RZ.packWeight(CFG, r.pack) <= r.capacity + 1e-9);
+  check('a rifle makes a pistol spare, a shotgun is never spare', RZ.spareGuns(CFG, ['pistol', 'rifle']).join() === 'pistol' &&
+    RZ.spareGuns(CFG, ['shotgun', 'rifle', 'mp5']).length === 0);
+});
+
+section('Tide length', () => {
+  const sim = RZ.createSim(CFG, 3);
+  for (let t = 0; t < 50; t++) RZ.stepSim(sim);
+  const timer = sim.tide.timer;
+  RZ.queueCall(sim, { type: 'calm', seconds: CFG.tide.calm + 60 });
+  RZ.stepSim(sim);
+  check('a longer calm stretches the calm under way', sim.tide.calm === CFG.tide.calm + 60 && sim.tide.timer === timer - 1 + 60 * CFG.sim.ticksPerSecond);
+  RZ.queueCall(sim, { type: 'calm', seconds: 5 });
+  RZ.queueCall(sim, { type: 'calm', seconds: 9999 });
+  RZ.stepSim(sim);
+  check('the slider stays in its range', sim.tide.calm === CFG.tide.calmMax);
+  const script = [{ tick: 40, type: 'calm', seconds: CFG.tide.calmMin }, { tick: 3000, type: 'calm', seconds: CFG.tide.calmMax }];
+  const a = run(3, 6000, script.map(call => Object.assign({}, call)));
+  const b = run(3, 6000, a.callLog.map(call => Object.assign({}, call)));
+  check('a run with the slider moved replays exactly', RZ.fingerprint(a) === RZ.fingerprint(b));
+  const short = run(3, 6000, [{ tick: 1, type: 'calm', seconds: CFG.tide.calmMin }]);
+  const long = run(3, 6000, [{ tick: 1, type: 'calm', seconds: CFG.tide.calmMax }]);
+  check('a shorter calm brings more tides', short.tide.number > long.tide.number, short.tide.number + ' against ' + long.tide.number);
+});
+
 section('Respawn rule', () => {
   let stocked = 0;
   let bare = 0;
@@ -182,7 +259,7 @@ section('Respawn rule', () => {
     let stash = null;
     for (let t = 0; t < 12000; t++) {
       const before = sim.lastSafe;
-      const had = before && before !== 'home' && sim.stashes[before] && RZ.holdsGear(sim.stashes[before]);
+      const had = before && before !== 'home' && RZ.canStartAt(sim.stashes[before]);
       RZ.stepSim(sim);
       if (wasAlive && !sim.ranger.alive) stash = { had: had, id: before };
       if (!wasAlive && sim.ranger.alive && stash) {
@@ -242,7 +319,8 @@ section('A greater tide', () => {
   const firstWorld = sim.world;
   let before = null;
   for (let t = 0; t < 26000 && sim.world === firstWorld; t++) {
-    if (sim.tide.greater && !before) {
+    // Taken on the tick before the land changes: a ranger caught by the greater tide may still learn from it.
+    if (sim.tide.greater) {
       before = { names: sim.world.safe.map(s => s.name), lessons: JSON.stringify(sim.book.lessons), trust: sim.book.zero.trust };
     }
     RZ.stepSim(sim);

@@ -86,6 +86,11 @@ var RZ = RZ || {};
       any: ['Copy. The tide decides, then.', 'Understood. When it goes, it goes.']
     },
     setout_fetch: { any: ['Going back for supplies.', '{place} is short. Heading home for more.'] },
+    setout_hungry: {
+      any: ['Nothing to eat at {place}. Going home.', 'Can\'t wait out another tide on an empty stomach.'],
+      reckless: ['Starving out here proves nothing. Home.'],
+      cautious: ['Better hungry at home than starved at {place}.']
+    },
     setout_advance: { any: ['Moving up to {place}.', 'On to {place}. It\'s closer.'] },
     setout_forage: {
       any: ['There\'s time for a look around.', 'Short walk. See what the tide left.', 'Can\'t sit still. Having a look.'],
@@ -182,6 +187,13 @@ var RZ = RZ || {};
     no_ammo: { any: ['Empty. I\'m empty.', 'Out of rounds.', 'That was my last round.'] },
     low_ammo: { any: ['Getting low on rounds.', 'A handful of rounds left.'] },
     heal: { any: ['Patching up.', 'Using a medkit.', 'That\'s the worst of it stopped.'] },
+    heal_mould: { any: ['Medkit on the mould. It\'s spreading.', 'Burning it back with the medkit.', 'It\'s in the cuts. Cleaning it out.'] },
+    tide_touch: {
+      any: ['It\'s on me! It burns!', 'It touched me. Zero, it\'s on my skin.', 'I\'m in it. Keep moving, keep moving.'],
+      reckless: ['Just a splash. Just a splash.'],
+      cautious: ['No. No, no. It\'s on me.']
+    },
+    mould_cured: { any: ['The gold\'s burned it out. I can breathe.', 'Clean. The gold took it.', 'It\'s gone. I can feel my hands again.'] },
     eat: { any: ['Eating while I walk.', 'Food. Not good food.'] },
     hungry: { any: ['Getting hungry.', 'Should have brought more to eat.'], reckless: ['Food is for people who plan.'] },
     found: {
@@ -417,7 +429,7 @@ var RZ = RZ || {};
 
   // Some lines always get said. Everything else waits its turn, so rangers don't babble.
   var URGENT = {
-    contact: 1, grenade: 1, hurt_bad: 1, tide_seen: 1, tide_close: 1, turn_back: 1, push_on: 1, reached: 1, triumph: 1,
+    contact: 1, grenade: 1, hurt_bad: 1, tide_seen: 1, tide_close: 1, tide_touch: 1, heal_mould: 1, turn_back: 1, push_on: 1, reached: 1, triumph: 1,
     old_seen: 1, old_kill: 1, struck: 1, right: 1, right_ignored: 1, wrong: 1, wrong_turnback: 1, safe_close: 1,
     ack_turnback: 1, no_turnback: 1, ack_pushon: 1, no_pushon: 1, pushon_nothing: 1, turnback_inside: 1,
     ack_warn: 1, no_warn: 1, ack_send: 1, no_send: 1, no_time: 1, ack_crate: 1, crate_later: 1, crate_stash: 1,
@@ -472,6 +484,7 @@ var RZ = RZ || {};
     if (!plan || plan.kind === 'wait') {
       if (plan && plan.why === 'tide') return 'Sit tight until the tide has gone through, then see what\'s what.';
       if (plan && plan.why === 'stores') return 'The stores are empty. I\'m waiting for the next ration.';
+      if (plan && plan.why === 'mould') return 'Letting the gold burn the mould out of me. Nobody goes out with it still in them.';
       if (plan && plan.why === 'done') return 'Nothing. The board\'s done. I\'m waiting to see what comes for it.';
       return 'Waiting for a window long enough for ' + book.mission.name + '. The journal gives me ' + Math.max(0, left) + ' seconds on this one.';
     }

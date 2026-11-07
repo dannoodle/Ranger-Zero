@@ -24,6 +24,11 @@ var RZ = RZ || {};
     return pack.food + pack.ammo + pack.med + pack.grenade > 0 || pack.weapons.length > 0;
   };
 
+  // Somewhere a ranger can start out with nothing: gear to go on, and food to wait on.
+  RZ.canStartAt = function (stash) {
+    return !!stash && stash.food > 0 && RZ.holdsGear(stash);
+  };
+
   RZ.bestWeapon = function (cfg, weapons) {
     var best = null;
     weapons.forEach(function (name) {
@@ -157,11 +162,75 @@ var RZ = RZ || {};
     });
   };
 
-  // Picks up everything on the ranger's cell that fits. Returns what was taken.
-  RZ.pickUp = function (sim, r) {
+  // Worth leaving loot or spare rounds behind for. So is a better gun.
+  RZ.MAKES_ROOM = { food: true, med: true, grenade: true };
+
+  // Guns that another carried gun beats at every distance, so they're only weight. A rifle makes a
+  // pistol spare. Nothing makes a shotgun spare, because nothing hits as hard up close.
+  RZ.spareGuns = function (cfg, weapons) {
+    var guns = cfg.items.weapons;
+    return weapons.filter(function (name) {
+      var gun = guns[name];
+      return weapons.some(function (other) {
+        if (other === name || guns[other].rank <= gun.rank) return false;
+        for (var d = 1; d <= gun.range; d++) {
+          if (RZ.gunRate(guns[other], d, 99) < RZ.gunRate(gun, d, 99)) return false;
+        }
+        return true;
+      });
+    });
+  };
+
+  // Weight a ranger could free by leaving loot, spare guns and any rounds over `keep`.
+  RZ.roomToMake = function (cfg, pack, keep) {
+    var w = cfg.items.weights;
+    var guns = 0;
+    RZ.spareGuns(cfg, pack.weapons).forEach(function (name) { guns += cfg.items.weapons[name].weight; });
+    return pack.loot * w.loot + guns + Math.max(0, pack.ammo - keep) * w.ammo;
+  };
+
+  // Makes room for what's on this cell, leaving loot first, then spare guns, then spare rounds. Returns
+  // a function that puts them on the ground, called after the pick-up so they aren't taken straight back.
+  function makeRoom(sim, r, keep) {
+    var cfg = sim.cfg;
+    var w = cfg.items.weights;
+    var wanted = 0;
+    sim.items.forEach(function (item) {
+      if (item.x !== r.x || item.y !== r.y) return;
+      if (item.kind === 'weapon') {
+        var gun = cfg.items.weapons[item.weapon];
+        var better = !r.weapon || gun.rank > cfg.items.weapons[r.weapon].rank;
+        if (better && r.pack.weapons.indexOf(item.weapon) < 0) wanted += gun.weight;
+      } else if (RZ.MAKES_ROOM[item.kind]) wanted += item.qty * w[item.kind];
+    });
+    var short = wanted - (r.capacity - RZ.packWeight(cfg, r.pack));
+    if (short <= 0) return null;
+    var loot = Math.min(r.pack.loot, Math.ceil(short / w.loot - 1e-6));
+    short -= loot * w.loot;
+    var guns = [];
+    RZ.spareGuns(cfg, r.pack.weapons).forEach(function (name) {
+      if (short <= 0) return;
+      guns.push(name);
+      short -= cfg.items.weapons[name].weight;
+    });
+    var rounds = short > 0 ? Math.min(Math.max(0, r.pack.ammo - keep), Math.ceil(short / w.ammo - 1e-6)) : 0;
+    r.pack.loot -= loot;
+    r.pack.ammo -= rounds;
+    r.pack.weapons = r.pack.weapons.filter(function (name) { return guns.indexOf(name) < 0; });
+    return function () {
+      if (loot > 0) addItem(sim, r.x, r.y, 'loot', loot);
+      if (rounds > 0) addItem(sim, r.x, r.y, 'ammo', rounds);
+      guns.forEach(function (name) { addItem(sim, r.x, r.y, 'weapon', 1, name); });
+    };
+  }
+
+  // Picks up everything on the ranger's cell that fits. Given `keep`, loot and any rounds over that
+  // number are left behind to make room for food, medkits, grenades or a better gun. Returns what was taken.
+  RZ.pickUp = function (sim, r, keep) {
     var cfg = sim.cfg;
     var taken = [];
     var spilled = [];
+    var leave = keep === undefined ? null : makeRoom(sim, r, keep);
     sim.items = sim.items.filter(function (item) {
       if (item.x !== r.x || item.y !== r.y) return true;
       var spare = r.capacity - RZ.packWeight(cfg, r.pack);
@@ -189,6 +258,7 @@ var RZ = RZ || {};
       return item.qty > 0;
     });
     spilled.forEach(function (item) { openCrate(sim, r, item); });
+    if (leave) leave();
     return taken;
   };
 

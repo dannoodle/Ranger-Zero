@@ -129,7 +129,8 @@ var RZ = RZ || {};
         var sample = clock.seconds - tide.lastClear;
         // A sighting this soon is the last tide still draining away, not a new one.
         if (sample >= tide.window * r.cfg.planner.tideSampleFloor) {
-          tide.window += (sample - tide.window) * (sample < tide.window ? 0.6 : 0.2);
+          var p = r.cfg.planner;
+          tide.window += (sample - tide.window) * (sample < tide.window ? p.tideLearnDown : p.tideLearnUp);
           tide.samples++;
         }
       }
@@ -177,6 +178,16 @@ var RZ = RZ || {};
 
   function upkeep(r, act, place) {
     var c = r.cfg.ranger;
+    // The tide's mould. A medkit burns some of it out, when there's no gold near enough to do it.
+    if (r.infection > 0 && !place && !r.caught) {
+      r.caught = true;
+      act.say('tide_touch');
+    }
+    // Not while still standing in it, unless it's that or fall down.
+    var inIt = r.percept && r.percept.tide && r.percept.tide.distance < 1;
+    if (!place && r.infection >= r.cfg.tide.medAt && (!inIt || r.hp < c.healBelow * 0.5) && act.heal()) act.say('heal_mould');
+    if (place && r.wasInfected && r.infection === 0) act.say('mould_cured');
+    r.wasInfected = r.infection > 0;
     if (r.energy < c.eatBelow) {
       if (act.eat()) act.say('eat');
       else if (place) act.eatFromStash();
@@ -200,6 +211,16 @@ var RZ = RZ || {};
     r.lastSafe = place.id;
     act.usedSafeHouse(place.id);
     RZ.commitMap(book, r);
+  }
+
+  // Caught out and lived. The journal takes it as a warning, a smaller one than a death.
+  function survivedTide(r, book, place, clock) {
+    if (!r.caught) return;
+    r.caught = false;
+    var c = r.cfg.lessons;
+    book.lessons.tideMargin = Math.min(c.tideMarginMax, book.lessons.tideMargin + c.tideMarginCaught);
+    RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'The tide caught me out. Made it under gold at ' + place.name +
+      ' with the mould in me. Leaving more time from now on.');
   }
 
   // Walks a ranger to a spot Zero gave them, as a detour from wherever they are.
@@ -265,6 +286,7 @@ var RZ = RZ || {};
         var shelter = RZ.nearestSafe(r, book, here(r));
         if (shelter) {
           r.mode = 'shelter';
+          r.sheltering = 'zero';
           setPath(r, shelter.place);
         }
       } else if (type === 'pushon') {
@@ -511,7 +533,8 @@ var RZ = RZ || {};
     if (r.plan.ordered) return true;
     var p = r.cfg.planner;
     var toSite = RZ.legSeconds(r, here(r), book.mission);
-    if (!toSite || toSite.seconds > p.pushSeconds * book.lessons.nerve * r.temper.pushSeconds) return false;
+    var reach = Math.min(p.pushMax, p.pushSeconds * book.lessons.nerve * r.temper.pushSeconds);
+    if (!toSite || toSite.seconds > reach) return false;
     if (!r.plan.pushed) {
       r.plan.pushed = true;
       act.say('push_on');
@@ -526,14 +549,21 @@ var RZ = RZ || {};
     var p = r.cfg.planner;
     var incoming = percept.tide && percept.tide.distance <= (r.lastTideDistance === undefined ? 99 : r.lastTideDistance);
     r.lastTideDistance = percept.tide ? percept.tide.distance : undefined;
-    if (clock.tick < r.nextShelterCheck && !incoming) return r.mode === 'shelter' || r.mode === 'climb';
+    if (clock.tick < r.nextShelterCheck && !incoming) return !!r.sheltering;
     r.nextShelterCheck = clock.tick + p.shelterCheckTicks;
 
     var shelter = RZ.nearestSafe(r, book, here(r));
     if (!shelter) return false;
     var left = RZ.timeLeft(book, clock.seconds, r);
     var mustGo = left < shelter.seconds * (1 + p.routeSlack) + p.buffer;
-    if (r.mode !== 'shelter' && r.mode !== 'climb' && !mustGo && !incoming) return false;
+    // Walking home with time in hand isn't running for it, and there's time to pick things up.
+    // Zero calling them in is running for it.
+    if (!mustGo && !incoming && r.mode !== 'climb' && r.sheltering !== 'zero') {
+      r.sheltering = false;
+      return false;
+    }
+    r.sheltering = r.sheltering === 'zero' ? 'zero' : true;
+    r.grab = null;
     if (!incoming && pushingOn(r, book, clock, act)) return false;
     if (r.plan && r.plan.ordered && percept.tide && percept.tide.distance > p.climbWhenTideWithin) return false;
     if (percept.tide && percept.tide.distance < 10) act.say('tide_close');
@@ -542,12 +572,15 @@ var RZ = RZ || {};
       var c = r.cfg.lessons;
       book.lessons.nerve = Math.min(c.nerveMax, book.lessons.nerve + c.nerveStep);
       book.lessons.tideMargin = Math.max(c.tideMarginStart, book.lessons.tideMargin - c.tideMarginEase);
+      book.mission.turnbacks = (book.mission.turnbacks || 0) + 1;
       RZ.writeEntry(book, clock, 'note', RZ.lead(r) + 'Turning back with ' + book.mission.name +
         ' still ' + Math.round(distance(r, book.mission)) + ' cells off. The tide won\'t wait.');
       act.say('turn_back');
     }
 
-    if (percept.tide && percept.tide.distance < p.climbWhenTideWithin && shelter.seconds > p.climbWhenShelterBeyond) {
+    // Already in it: every second there burns, and higher ground that's flooded is no help. Run for gold.
+    var inIt = percept.tide && percept.tide.distance < 1;
+    if (!inIt && percept.tide && percept.tide.distance < p.climbWhenTideWithin && shelter.seconds > p.climbWhenShelterBeyond) {
       if (r.mode !== 'climb') act.say('climb');
       r.mode = 'climb';
       r.plan = null;
@@ -560,15 +593,37 @@ var RZ = RZ || {};
     return true;
   }
 
+  // Rounds a ranger won't leave behind to make room: all of them on the way out to an attempt.
+  function keepRounds(r) {
+    return r.plan && r.plan.attempt && r.plan.at === 0 ? Infinity : r.cfg.planner.keepRounds;
+  }
+
+  // A full pack still has room for something better: loot and spare rounds can be left behind.
   function worthGrabbing(r, item) {
     var cfg = r.cfg;
     var pack = r.pack;
     var spare = r.capacity - RZ.packWeight(cfg, pack);
     if (item.kind === 'crate' || item.kind === 'relic') return true;
+    var room = spare + RZ.roomToMake(cfg, pack, keepRounds(r));
     if (item.kind === 'weapon') {
-      return pack.weapons.indexOf(item.weapon) < 0 && cfg.items.weapons[item.weapon].weight <= spare;
+      var gun = cfg.items.weapons[item.weapon];
+      if (pack.weapons.indexOf(item.weapon) >= 0) return false;
+      if (RZ.spareGuns(cfg, pack.weapons.concat([item.weapon])).indexOf(item.weapon) >= 0) return false;
+      // A gun no better than one carried is only worth room that's free already.
+      var better = !r.weapon || gun.rank > cfg.items.weapons[r.weapon].rank;
+      return gun.weight <= (better ? room : spare);
     }
-    return cfg.items.weights[item.kind] <= spare;
+    return cfg.items.weights[item.kind] <= (RZ.MAKES_ROOM[item.kind] ? room : spare);
+  }
+
+  // Whether a detour to a spot still gets the ranger under gold in time, by the journal.
+  // Measured pessimistically, as if every cell were unknown ground, both ways.
+  function detourFits(r, book, clock, spot, shelter) {
+    var p = r.cfg.planner;
+    if (!shelter) return false;
+    var out = distance(spot, r) * r.cfg.ranger.unknownCost / r.speed;
+    var left = RZ.timeLeft(book, clock.seconds, r);
+    return out * 2 + shelter.seconds * (1 + p.routeSlack) + p.buffer * r.temper.grabTime <= left;
   }
 
   function handleItems(r, percept, act, clock, book) {
@@ -583,7 +638,7 @@ var RZ = RZ || {};
           }
           book.body = null;
         } else {
-          var taken = act.pickUp();
+          var taken = act.pickUp(keepRounds(r));
           if (taken.length) {
             if (taken[0] === 'rifle') act.say('found_rifle');
             else if (taken[0] === 'shotgun') act.say('found_shotgun');
@@ -604,10 +659,12 @@ var RZ = RZ || {};
       if (!r.path) setPath(r, r.grab);
       return true;
     }
-    if (RZ.timeLeft(book, clock.seconds, r) < p.grabMinimumTime * r.temper.grabTime) return false;
+    if (!percept.items.length && !percept.bodies.length) return false;
+    var shelter = RZ.nearestSafe(r, book, here(r));
     for (var b = 0; b < percept.bodies.length; b++) {
       var body = percept.bodies[b];
       if (r.leftBodies[body.no] || distance(body, r) > p.bodyRange) continue;
+      if (!detourFits(r, book, clock, body, shelter)) continue;
       r.leftBodies[body.no] = true;
       r.grab = { x: body.x, y: body.y, body: true, first: body.first };
       return setPath(r, r.grab);
@@ -621,7 +678,7 @@ var RZ = RZ || {};
         best = item;
       }
     });
-    if (!best) return false;
+    if (!best || !detourFits(r, book, clock, best, shelter)) return false;
     r.grab = { x: best.x, y: best.y };
     return setPath(r, r.grab);
   }
@@ -676,6 +733,7 @@ var RZ = RZ || {};
     for (var guard = 0; guard < 6; guard++) {
       if (!r.plan) {
         if (!place) {
+          if (r.mode === 'shelter' && pathStillGood(r)) return;
           var shelter = RZ.nearestSafe(r, book, here(r));
           if (!shelter) return;
           r.mode = 'shelter';
@@ -807,8 +865,10 @@ var RZ = RZ || {};
 
     if (place) {
       arriveSafe(r, book, place, act, percept, clock);
+      survivedTide(r, book, place, clock);
       if (act.stashHere()) book.stashes[place.id] = act.stashHere();
       if (r.achieved) RZ.completeObjective(r, book, act, clock, RZ.bookObjective(book, r.achieved));
+      r.sheltering = false;
       if (r.mode === 'shelter' || r.mode === 'climb') {
         r.mode = 'plan';
         r.path = null;

@@ -30,7 +30,8 @@ var RZ = RZ || {};
       weapon: null,
       inHand: null,           // the gun last fired, for the view
       cool: 0,
-      tideExposure: 0,
+      infection: 0,           // the tide's mould, out of 100. Drains health until gold burns it off
+      drained: 0,             // tide damage since the last report to the view
       map: RZ.copyKnowledge(sim.book.map),
       path: null,
       pathAt: 0,
@@ -164,6 +165,7 @@ var RZ = RZ || {};
         if (r.pack.med <= 0) return false;
         r.pack.med--;
         r.hp = Math.min(sim.cfg.ranger.hpMax, r.hp + r.medHeal);
+        r.infection = Math.max(0, r.infection - sim.cfg.tide.medCure);
         return true;
       },
       healFromStash: function () {
@@ -172,10 +174,11 @@ var RZ = RZ || {};
         if (!stash || stash.med <= 0) return false;
         stash.med--;
         r.hp = Math.min(sim.cfg.ranger.hpMax, r.hp + r.medHeal);
+        r.infection = Math.max(0, r.infection - sim.cfg.tide.medCure);
         return true;
       },
-      pickUp: function () {
-        return RZ.pickUp(sim, sim.ranger);
+      pickUp: function (keepRounds) {
+        return RZ.pickUp(sim, sim.ranger, keepRounds);
       },
       shoot: function (id) {
         return RZ.rangerShoot(sim, sim.ranger, id);
@@ -273,13 +276,14 @@ var RZ = RZ || {};
     };
   }
 
-  // The next ranger arrives with nothing at the last outpost used, if it holds any gear.
-  // Otherwise they start at home, which always gives a free basic kit.
+  // The next ranger arrives with nothing at the last outpost used, if it holds gear and food.
+  // Otherwise they start at home, which always gives a free basic kit. An outpost with no food
+  // would only starve them.
   function spawnNext(sim) {
     var world = sim.world;
     var place = world.safe[0];
     var freeKit = true;
-    if (sim.lastSafe && sim.lastSafe !== 'home' && RZ.holdsGear(sim.stashes[sim.lastSafe])) {
+    if (sim.lastSafe && sim.lastSafe !== 'home' && RZ.canStartAt(sim.stashes[sim.lastSafe])) {
       for (var i = 0; i < world.safe.length; i++) if (world.safe[i].id === sim.lastSafe) place = world.safe[i];
       freeKit = false;
     }
@@ -444,11 +448,34 @@ var RZ = RZ || {};
     }
     if (r.cool > 0) r.cool--;
 
-    if (RZ.tideCovers(sim, cell) && !inSafe) {
-      r.tideExposure++;
-      if (r.tideExposure >= cfg.tide.graceSeconds * cfg.sim.ticksPerSecond) RZ.hurtRanger(sim, r, r.hp, 'tide');
-    } else {
-      r.tideExposure = 0;
+    stepInfection(sim, r, cell, inSafe, atHome);
+  }
+
+  // The tide burns while it touches a ranger and leaves its mould behind, which drains health until
+  // gold burns it out. The view hears about the damage once a second, not every tick.
+  function stepInfection(sim, r, cell, inSafe, atHome) {
+    var c = sim.cfg.tide;
+    var perTick = 1 / sim.cfg.sim.ticksPerSecond;
+    var damage = 0;
+    if (!inSafe && RZ.tideCovers(sim, cell)) {
+      r.infection = Math.min(100, r.infection + c.infectRate * perTick);
+      damage += c.burn * perTick;
+    }
+    if (r.infection > 0) {
+      damage += r.infection * c.drain * perTick;
+      var cure = inSafe ? (atHome ? c.homeCure : c.goldCure) : c.fade;
+      r.infection = Math.max(0, r.infection - cure * perTick);
+    }
+    if (damage <= 0) return;
+    if (damage >= r.hp) {
+      RZ.hurtRanger(sim, r, damage, 'tide');
+      return;
+    }
+    r.hp -= damage;
+    r.drained += damage;
+    if (sim.tick % sim.cfg.sim.ticksPerSecond === 0) {
+      RZ.emit(sim, 'hurt', { x: r.x, y: r.y, damage: r.drained, cause: 'tide' });
+      r.drained = 0;
     }
   }
 
@@ -607,7 +634,7 @@ var RZ = RZ || {};
   RZ.fingerprint = function (sim) {
     var r = sim.ranger;
     var text = [
-      sim.tick, sim.tide.number, sim.tide.level.toFixed(6), r.no, r.x, r.y, r.hp.toFixed(6), r.energy.toFixed(6),
+      sim.tick, sim.tide.number, sim.tide.level.toFixed(6), sim.tide.calm, r.no, r.x, r.y, r.hp.toFixed(6), r.energy.toFixed(6), r.infection.toFixed(6),
       JSON.stringify(r.pack), sim.items.length, sim.scavs.length, sim.olds.length, sim.anomalies.length, sim.bodies.length, sim.signal,
       sim.book.zero.trust, sim.talkSeq,
       JSON.stringify(sim.stashes), sim.book.entries.length, JSON.stringify(sim.stats), sim.hold, sim.board ? sim.board.no : 0

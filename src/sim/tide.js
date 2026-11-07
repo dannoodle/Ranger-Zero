@@ -10,6 +10,7 @@ var RZ = RZ || {};
       level: 0,
       number: 0,
       timer: 0,
+      calm: sim.cfg.tide.calm,   // seconds; Zero's slider changes it, as a logged call
       front: null,
       rng: sim.rng.fork('tide')
     };
@@ -24,8 +25,20 @@ var RZ = RZ || {};
 
   function calmTicks(sim, tide) {
     var c = sim.cfg.tide;
-    return ticks(sim, c.calm * (1 + tide.rng.range(-c.calmJitter, c.calmJitter)));
+    return ticks(sim, tide.calm * (1 + tide.rng.range(-c.calmJitter, c.calmJitter)));
   }
+
+  // A new length for calm spells. A calm already under way stretches or shrinks by the difference,
+  // so the change is felt now. Nobody tells the rangers: the journal finds out by timing tides.
+  RZ.setCalm = function (sim, seconds) {
+    var c = sim.cfg.tide;
+    var tide = sim.tide;
+    var calm = Math.max(c.calmMin, Math.min(c.calmMax, Math.round(Number(seconds) || c.calm)));
+    if (calm === tide.calm) return false;
+    if (tide.phase === 'calm') tide.timer = Math.max(1, tide.timer + ticks(sim, calm - tide.calm));
+    tide.calm = calm;
+    return true;
+  };
 
   // A new front every tide, so each one finds a slightly different way in.
   function buildFront(sim, tide) {
