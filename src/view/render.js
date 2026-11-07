@@ -172,9 +172,8 @@ var RZ = RZ || {};
   }
 
   // The land never changes, so it's drawn once into its own canvas.
-  function buildBase(world, cfg) {
+  function buildBase(world, cfg, px) {
     var look = cfg.look;
-    var px = look.basePixelsPerCell;
     var canvas = document.createElement('canvas');
     canvas.width = world.w * px;
     canvas.height = world.h * px;
@@ -203,9 +202,8 @@ var RZ = RZ || {};
   }
 
   // Mould rings are many soft blobs, so they look grown rather than drawn.
-  function buildGoldRings(world, cfg) {
+  function buildGoldRings(world, cfg, px) {
     var look = cfg.look;
-    var px = look.basePixelsPerCell;
     var canvas = document.createElement('canvas');
     canvas.width = world.w * px;
     canvas.height = world.h * px;
@@ -275,15 +273,67 @@ var RZ = RZ || {};
     this.fogImage = this.fogContext.createImageData(world.w, world.h);
     this.fogStamp = -1;
     this.fogMode = null;
+
+    var self = this;
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) self.layerCheck = Infinity;
+    });
   }
 
-  // The land only changes at a greater tide, so these layers are drawn once for each map.
+  // The land layer is opaque everywhere, so a clear pixel in its middle means it was never drawn or
+  // has been wiped. Android Chrome wipes GPU canvases when it frees memory, such as when the phone
+  // sleeps or the tab is in the background.
+  function isBlank(canvas) {
+    try {
+      return canvas.getContext('2d').getImageData(canvas.width >> 1, canvas.height >> 1, 1, 1).data[3] === 0;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function isLost(canvas) {
+    var ctx = canvas.getContext('2d');
+    return !!(ctx.isContextLost && ctx.isContextLost());
+  }
+
+  // Look at the land layer now and then, and as soon as the page comes back into view.
+  Renderer.prototype.checkLayers = function (dt) {
+    this.layerCheck = (this.layerCheck || 0) + (dt || 0);
+    if (this.layerCheck < this.look.layerCheckSeconds) return;
+    this.layerCheck = 0;
+    if (!this.base || !isBlank(this.base)) {
+      this.lostChecks = 0;
+      return;
+    }
+    // A lost canvas usually comes back blank within a moment, and building while the GPU is gone
+    // would only fail. Give it a few checks, then rebuild anyway.
+    this.lostChecks = (this.lostChecks || 0) + 1;
+    if (!isLost(this.base) || this.lostChecks >= 3) {
+      this.lostChecks = 0;
+      this.layersLost = true;
+    }
+  };
+
+  // The land only changes at a greater tide, so these layers are drawn once for each map, and again
+  // if the browser throws them away.
   Renderer.prototype.buildLayers = function () {
     var sim = this.sim;
-    if (this.builtFor === sim.world) return;
+    if (this.builtFor === sim.world && !this.layersLost) return;
     this.builtFor = sim.world;
-    this.base = buildBase(sim.world, sim.cfg);
-    this.gold = buildGoldRings(sim.world, sim.cfg);
+    this.layersLost = false;
+    // Give the old layers' memory back now rather than at the next collection: phones run short.
+    if (this.base) this.base.width = 0;
+    if (this.gold) this.gold.width = 0;
+    var px = this.look.basePixelsPerCell;
+    this.base = buildBase(sim.world, sim.cfg, px);
+    // A phone that can't give a canvas this big leaves it blank (Chrome calls it lost), so step down
+    // until one takes.
+    while (px > 4 && isBlank(this.base)) {
+      this.base.width = 0;
+      px /= 2;
+      this.base = buildBase(sim.world, sim.cfg, px);
+    }
+    this.gold = buildGoldRings(sim.world, sim.cfg, px);
     this.frontSource = null;
     this.fogStamp = -1;
   };
@@ -678,6 +728,7 @@ var RZ = RZ || {};
 
   Renderer.prototype.draw = function (dt) {
     var ctx = this.ctx;
+    this.checkLayers(dt);
     this.buildLayers();
     var world = this.sim.world;
     this.fit();

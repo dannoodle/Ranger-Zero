@@ -466,6 +466,7 @@ var CFG = {
   // Drawing only. Nothing in the sim may read this.
   look: {
     basePixelsPerCell: 16,
+    layerCheckSeconds: 2,      // how often to check the browser hasn't wiped the land layer
     background: '#0c1115',
     tint: ['#16201f', '#1b2622', '#232c25', '#2e332a', '#3b3b30', '#4a4639', '#5a5546'],
     shallow: '#1b3a4b',

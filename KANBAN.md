@@ -12,13 +12,14 @@ An autonomous top-down survival sim. See [docs/concept.md](docs/concept.md) for 
 - **Moving a card:** cut the line and paste it into the new column. When it reaches Done, tick the box and add the date: `- [x] R-001 Short description (2026-11-06)`.
 - **Done** stays on this board until it gets long, then older cards move to `KANBAN-archive.md`.
 
-**Next ID:** R-102
+**Next ID:** R-103
 
 ---
 
 ## In Progress
 
-_Nothing yet._
+- [ ] R-102 Phone: the land layer shows black on Android Chrome
+  The offscreen land canvas is drawn once per map, and Android Chrome can wipe GPU canvases or fail to give one this big. The renderer now checks a pixel of it every `look.layerCheckSeconds` and on returning to the page, rebuilds it when wiped, and steps its resolution down when a canvas won't allocate. Tested by wiping it and by forcing an oversized one in desktop Chrome. Waiting on a check on a real phone.
 
 ## Ready
 
