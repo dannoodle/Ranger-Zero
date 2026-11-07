@@ -233,10 +233,30 @@
     var dragging = null;
     canvas.addEventListener('wheel', function (event) {
       event.preventDefault();
-      camera.zoomBy(event.deltaY < 0 ? 1.15 : 1 / 1.15);
+      camera.zoomBy(Math.pow(event.deltaY < 0 ? 1.15 : 1 / 1.15, 1 / (renderer.zoomPower || 1)));
       syncCameraButtons();
     }, { passive: false });
+    // Two fingers pinch to zoom. A pinch is never a click, and lifting one finger doesn't start a drag.
+    var touches = {};
+    var pinch = null;
+    function spread() {
+      var ids = Object.keys(touches);
+      if (ids.length < 2) return 0;
+      var a = touches[ids[0]];
+      var b = touches[ids[1]];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+    function lift(event) {
+      delete touches[event.pointerId];
+      if (Object.keys(touches).length < 2) pinch = null;
+    }
     canvas.addEventListener('pointerdown', function (event) {
+      touches[event.pointerId] = { x: event.clientX, y: event.clientY };
+      if (Object.keys(touches).length >= 2) {
+        pinch = spread();
+        dragging = null;
+        return;
+      }
       dragging = { x: event.clientX, y: event.clientY, moved: 0 };
       try {
         canvas.setPointerCapture(event.pointerId);
@@ -244,7 +264,22 @@
         // Only a real pointer can be captured. Dragging still works without it.
       }
     });
+    canvas.addEventListener('pointercancel', function (event) {
+      lift(event);
+      dragging = null;
+    });
     canvas.addEventListener('pointermove', function (event) {
+      if (touches[event.pointerId]) touches[event.pointerId] = { x: event.clientX, y: event.clientY };
+      if (pinch) {
+        var now = spread();
+        if (now > 0 && pinch > 0) {
+          // Zoom is a power on small screens, so take the root to keep the map under the fingers.
+          camera.zoomBy(Math.pow(now / pinch, 1 / (renderer.zoomPower || 1)));
+          syncCameraButtons();
+        }
+        pinch = now;
+        return;
+      }
       if (!dragging) return;
       var dx = event.clientX - dragging.x;
       var dy = event.clientY - dragging.y;
@@ -256,6 +291,7 @@
       syncCameraButtons();
     });
     canvas.addEventListener('pointerup', function (event) {
+      lift(event);
       var click = dragging && dragging.moved < 6;
       dragging = null;
       if (!click) return;

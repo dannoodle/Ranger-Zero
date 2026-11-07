@@ -722,7 +722,9 @@ small.wont { color: var(--red); }
   html, body { height: auto; }
   #app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(300px, 70vw) auto auto auto;
+    /* The map takes the screen, less a strip so the line peeks out and says there's more below. */
+    grid-template-rows: minmax(300px, calc(100vh - 44px)) auto auto auto;
+    grid-template-rows: minmax(300px, calc(100svh - 44px)) auto auto auto;
     grid-template-areas: "stage" "line" "controls" "side";
     height: auto;
   }

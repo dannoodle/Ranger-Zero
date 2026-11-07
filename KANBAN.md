@@ -12,7 +12,7 @@ An autonomous top-down survival sim. See [docs/concept.md](docs/concept.md) for 
 - **Moving a card:** cut the line and paste it into the new column. When it reaches Done, tick the box and add the date: `- [x] R-001 Short description (2026-11-06)`.
 - **Done** stays on this board until it gets long, then older cards move to `KANBAN-archive.md`.
 
-**Next ID:** R-101
+**Next ID:** R-102
 
 ---
 
@@ -102,6 +102,8 @@ Phase C: supply and looting strategy.
 
 ## Done
 
+- [x] R-101 Phone view: the map fills the screen and shows the landscape, with pinch to zoom (2026-11-07)
+  On a phone the map was a 300px strip with cells about 5px wide. It now takes the screen less a strip where the line peeks out. On small screens zoom works as a power, so zoom 1 is still the whole map but road zoom lands on `look.zoom.roadCell` (13) CSS pixels a cell, capped at `look.zoom.maxCell`. Big screens keep a power of 1, so nothing changes there. Two fingers pinch to zoom.
 - [x] R-100 Radio reception: transmissions come through clean near home and break up far out, in the tide and in last words (2026-11-07)
   Reception runs from 0 (clear) to 1 (barely there): distance from home on a curve, the tide close by, low signal, and 0.85 for last words. Worse reception means drifting static, more crackle, a wandering heterodyne whistle, now and then another channel murmuring through, and the voice a little fainter and off pitch. Lines are always spoken whole: cutting the voice up between words was tried and taken out, as it sounded worse. 6 seeds of 25 minutes: 55% of lines clean or nearly, 45% rough, the worst kept for the tide at the edges and last words. `?look.voices.reception.fixed=0.9` forces a level to hear it.
 - [x] R-099 Old selves' words appear over the old self, not the living ranger (2026-11-07)

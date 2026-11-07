@@ -554,7 +554,11 @@ var CFG = {
       dead: 2.8,
       ease: 1.5,             // zoom smoothing, per second
       pan: 3.2,              // position smoothing, per second
-      lookAhead: 0.3         // how far the camera leads along the route
+      lookAhead: 0.3,        // how far the camera leads along the route
+      // On a small screen, zoom 1 still shows the whole map, but closer zooms climb faster so a cell
+      // is at least this many CSS pixels wide at road zoom. Big screens already pass it.
+      roadCell: 13,
+      maxCell: 56            // never zoom past this many CSS pixels a cell
     },
     pace: {
       wait: 8,               // auto speed while waiting out a calm spell

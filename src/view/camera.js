@@ -94,7 +94,8 @@ var RZ = RZ || {};
       this.follow = true;
       this.zoomGoal = this.zoom;
     }
-    this.zoomGoal = Math.max(z.min, Math.min(z.max, this.zoomGoal * factor));
+    var max = Math.min(z.max, this.maxZoom || z.max);   // the renderer sets maxZoom to suit the screen
+    this.zoomGoal = Math.max(z.min, Math.min(max, this.zoomGoal * factor));
   };
 
   Camera.prototype.drag = function (cellsX, cellsY) {

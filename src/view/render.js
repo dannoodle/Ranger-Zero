@@ -305,7 +305,13 @@ var RZ = RZ || {};
     var fill = Math.max(width / world.w, height / world.h);
     var blend = Math.min(1, camera.zoom - 1);
     var floor = fitAll + (fill - fitAll) * blend;
-    this.scale = Math.max(floor, fitAll * camera.zoom);
+    // Zoom works as a power, so zoom 1 is still the whole map, but on a small screen the road zoom
+    // lands on z.roadCell pixels a cell instead of a few. On a big screen the power is 1.
+    var z = this.sim.cfg.look.zoom;
+    this.zoomPower = Math.max(1, Math.log(z.roadCell * dpr / fitAll) / Math.log(z.road));
+    camera.maxZoom = Math.pow(Math.max(1.01, z.maxCell * dpr / fitAll), 1 / this.zoomPower);
+    var zoom = Math.min(camera.zoom, camera.maxZoom);
+    this.scale = Math.max(floor, fitAll * Math.pow(zoom, this.zoomPower));
     var viewW = width / this.scale;
     var viewH = height / this.scale;
     var cx = viewW >= world.w ? world.w / 2 : Math.max(viewW / 2, Math.min(world.w - viewW / 2, camera.x + 0.5));
