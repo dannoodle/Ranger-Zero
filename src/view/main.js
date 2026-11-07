@@ -36,6 +36,7 @@
   var camera = RZ.makeCamera(sim);
   var renderer = RZ.makeRenderer(document.getElementById('map'), sim, camera);
   var audio = RZ.makeAudio();
+  var voices = RZ.makeVoices(audio, CFG.look.voices);
   var viewMode = 'dual';
   var panel = RZ.makePanel(sim, function () { return viewMode; });
   var speed = SPEEDS.indexOf(options.speed) >= 0 && options.speed !== 0 ? options.speed : 'auto';
@@ -300,6 +301,8 @@
         overlays.toggleHistory();
       } else if (key === 'n') {
         toggleSound();
+      } else if (key === 'v') {
+        toggleVoices();
       } else if (byKey[key]) {
         var button = document.querySelector('#radioControls button[data-call="' + byKey[key] + '"]');
         if (button) useButton(button);
@@ -311,6 +314,22 @@
     audio.start();
     audio.setMuted(!audio.muted);
     document.getElementById('sound').textContent = audio.muted ? 'sound off' : 'sound on';
+    if (audio.muted) voices.stop();
+  }
+
+  function toggleVoices() {
+    audio.start();
+    voices.setOn(!voices.on);
+    syncVoicesButton();
+  }
+
+  function syncVoicesButton() {
+    var button = document.getElementById('voices');
+    if (!voices.synth) {
+      button.disabled = true;
+      button.title = 'This browser has no speech synth';
+    }
+    button.textContent = voices.on ? 'voices on' : 'voices off';
   }
 
   function goToSeed(seed) {
@@ -330,6 +349,8 @@
       goToSeed(Math.floor(Math.random() * 1000000));
     });
     document.getElementById('sound').addEventListener('click', toggleSound);
+    document.getElementById('voices').addEventListener('click', toggleVoices);
+    syncVoicesButton();
     document.getElementById('historyButton').addEventListener('click', function () { overlays.toggleHistory(); });
   }
 
@@ -339,8 +360,11 @@
     if (calm) renderer.fx.handle(event);
     if (event.type === 'say') {
       if (event.kind === 'ranger') {
-        if (sim.ranger.alive || sim.tick - event.tick < 2) renderer.showSpeech(event);
-        if (calm) audio.play('blip');
+        var fresh = sim.ranger.alive || sim.tick - event.tick < 2;
+        if (fresh) renderer.showSpeech(event);
+        var speaker = event.who === sim.ranger.first ? sim.ranger : { no: 0, name: event.who, temperName: '' };
+        var voiced = fresh && voices.hear(event.text, speaker, running);
+        if (calm && !voiced) audio.play('blip');
       } else if (event.kind === 'zero') {
         audio.play('zero');
       } else if (event.kind === 'old') {
@@ -469,6 +493,7 @@
     boardBox.update();
     syncCalmSlider();
     audio.update(soundState());
+    voices.update();
     document.body.dataset.pace = running;
     requestAnimationFrame(frame);
   }
@@ -493,6 +518,6 @@
     overlays.showIntro();
   }
   // For poking at a running game from the browser console.
-  window.RZdebug = { sim: sim, camera: camera, overlays: overlays, audio: audio, renderer: renderer, storeCard: storeCard };
+  window.RZdebug = { sim: sim, camera: camera, overlays: overlays, audio: audio, voices: voices, renderer: renderer, storeCard: storeCard };
   requestAnimationFrame(frame);
 })();

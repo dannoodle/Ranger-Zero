@@ -9,7 +9,7 @@ var RZ = RZ || {};
   // {site}, {place}, {camp}, {name}, {last}, {rounds} and so on are filled in from the moment.
   var LINES = {
     first: {
-      any: ['Radio check. Is this Zero?', 'I\'ve read the journal. All of it.', 'Signed the book. Where do you want me?'],
+      any: ['Radio check. Is anyone on this channel?', 'I\'ve read the journal. All of it.', 'Signed the book. Where do you want me?'],
       cautious: ['Morning, Zero. I\'d like to do this slowly.', 'I read what happened to the last one. I\'ll be careful.'],
       greedy: ['So what\'s out there worth having?', 'Zero? They said you\'d know where the good stuff is.'],
       reckless: ['Right. Who\'s first?', 'Don\'t worry, Zero. I\'m the last one you\'ll need.']
@@ -85,6 +85,27 @@ var RZ = RZ || {};
     release_land: {
       any: ['Copy. The tide decides, then.', 'Understood. When it goes, it goes.']
     },
+    // The line's main job, said when it's chosen and by each new ranger who takes it on.
+    // {task} is the objective as a verb: "survey Old Mast", "bring home the seed case".
+    focus: {
+      any: ['New plan. We\'re going to {task}.', 'Right. The main job now is to {task}.', 'I\'ve read the board. First, we {task}.',
+            'The plan is to {task}. Everything else is just getting ready for it.'],
+      cautious: ['The plan is to {task}. I\'ll get everything ready first.'],
+      reckless: ['Here\'s the plan. We {task}, and we do it fast.'],
+      greedy: ['The plan is to {task}. And collect whatever it pays.']
+    },
+    focus_switch: {
+      any: ['Change of plan. Leaving {was} for now. We\'re going to {task} instead.', 'Forget {was} for now. Better odds if we {task}.',
+            'New plan. {was} can wait. We {task} first.'],
+      cautious: ['{was} is too much for now. We {task} first, and come back to it.']
+    },
+    stores_empty: {
+      any: ['The stash is bare. No rounds, no food, nothing. How am I meant to work like this?',
+            'Nothing in the stores. I\'m sitting here waiting for the next ration like a beggar.',
+            'Empty shelves. We can\'t do a thing until the ration comes.'],
+      reckless: ['Sitting here with nothing. This is worse than the tide.'],
+      greedy: ['Not even loot to count. Just bare shelves.']
+    },
     setout_fetch: { any: ['Going back for supplies.', '{place} is short. Heading home for more.'] },
     setout_hungry: {
       any: ['Nothing to eat at {place}. Going home.', 'Can\'t wait out another tide on an empty stomach.'],
@@ -104,7 +125,7 @@ var RZ = RZ || {};
       greedy: ['{name} won\'t need it now.'],
       cautious: ['I\'ll bring back what I can of {name}.']
     },
-    setout_errand: { any: ['Going to take a look.', 'On my way.', 'Heading over.'] },
+    setout_errand: { any: ['Going to take a look.', 'On my way.', 'Heading over there now.'] },
 
     safe: {
       any: ['Back at {place}.', 'Inside the ring at {place}.', '{place}. Boots off for a minute.'],
@@ -131,10 +152,10 @@ var RZ = RZ || {};
             'Beautiful, in a way. Don\'t write that down.', 'Everything out there is being eaten.'],
       cautious: ['The ring\'s holding. It always holds. It\'s held so far.'],
       greedy: ['There goes everything we didn\'t pick up.'],
-      reckless: ['Come on then.']
+      reckless: ['Come on then. I\'m not scared of you.']
     },
     walk: {
-      any: ['Nobody\'s been this way for a while.', 'Birds have stopped.', 'The map\'s right, for once.', 'Zero, you still there?',
+      any: ['Nobody\'s been this way for a while.', 'The birds have stopped singing.', 'The map\'s right, for once.', 'Zero, you still there?',
             'Old boot prints. Not ours.', 'Everything the tide touched has gone grey.'],
       cautious: ['I don\'t like how quiet it is.', 'Watching my feet.'],
       greedy: ['Eyes open. Something always gets left behind.'],
@@ -144,7 +165,7 @@ var RZ = RZ || {};
       any: ['This bit isn\'t in the journal.', 'New ground. Drawing it as I go.', 'Nobody has drawn this.', 'Off the edge of the map now.']
     },
     walk_forest: { any: ['Trees are thick here. Can\'t see much.', 'Hate the woods. Everything could be anything.'] },
-    walk_water: { any: ['Wet to the knees.', 'Slow going through the water.'] },
+    walk_water: { any: ['Wading through. Wet to the knees.', 'Slow going through the water.'] },
     grave: {
       any: ['This is where {name} fell.', 'There\'s nothing left of {name} here. I looked.', 'Passing {name}\'s mark on the map.', 'I\'m standing where {name} stopped.'],
       cautious: ['{name} came this way. I\'ll go carefully.'],
@@ -155,7 +176,7 @@ var RZ = RZ || {};
     camp_seen: {
       any: ['Scavengers at {place}.', 'Contact. There\'s a camp at {place}.', 'People up ahead. Armed.'],
       cautious: ['Scavengers at {place}. Staying low.'],
-      reckless: ['Company at {place}.'],
+      reckless: ['We\'ve got company at {place}.'],
       greedy: ['A camp at {place}. Camps have stores.']
     },
     patrol_seen: {
@@ -165,34 +186,61 @@ var RZ = RZ || {};
       greedy: ['Patrol near {place}. They\'ll be carrying.']
     },
     contact: {
-      any: ['They\'ve seen me.', 'Contact!', 'Shots. Getting down.', 'They\'re shooting, Zero.'],
-      reckless: ['Come on then!', 'My kind of afternoon.'],
-      cautious: ['I don\'t want this. Firing.']
+      any: ['They\'ve seen me. They\'re coming.', 'Contact! They\'ve opened fire!', 'Shots! Getting down, getting down!', 'They\'re shooting at me, Zero.',
+            'Under fire! I\'m under fire!'],
+      reckless: ['Come on then! Come and get me!', 'My kind of afternoon.'],
+      cautious: ['I don\'t want this. I don\'t want this. Firing.', 'Oh no. No, no. They\'ve seen me.']
+    },
+    // Still in the fight, and it isn't going well: outnumbered or bleeding.
+    pinned: {
+      any: ['I\'m pinned down! I can\'t move!', 'There\'s too many of them!', 'They\'re all around me!', 'I can\'t get my head up. They\'re everywhere!',
+            'Rounds coming in from every side!', 'I need a way out of here, Zero!', 'They\'re closing in. I can hear them reloading.'],
+      cautious: ['I don\'t want to die out here. Not here. Not like this.', 'Breathe. Aim. Breathe. Oh, they\'re so close.'],
+      reckless: ['Is that all you\'ve got? Is that all?', 'Keep coming! I\'ve got plenty more!'],
+      greedy: ['Nothing out here is worth this!', 'Whatever they\'re guarding, they can keep it!']
     },
     flee: {
-      any: ['Too many. Getting out.', 'No good. Moving.', 'Not this fight.'],
-      cautious: ['Falling back, Zero.'],
+      any: ['Too many of them. I\'m getting out.', 'This is no good. I\'m pulling back.', 'Not this fight. I\'m getting out of here.',
+            'I have to get out of here. Now!', 'Run. Just run. Don\'t look back.'],
+      cautious: ['Falling back, Zero. Falling back!'],
       reckless: ['Just stretching my legs.']
     },
     dash: {
-      any: ['No way round. Going through.', 'Running it.'],
-      reckless: ['Straight through them!']
+      any: ['No way round. I\'m going straight through them.', 'Running it. Keep your head down and run.'],
+      reckless: ['Straight through them! Out of my way!']
     },
-    hurt: { any: ['Hit!', 'Ah! Took one.', 'I\'m hit.', 'That one got me.'] },
+    hurt: {
+      any: ['I\'m hit! They got me!', 'Ah! Took one in the arm.', 'I\'m hit. I\'m hit, but I\'m moving.', 'That one got me.',
+            'Argh! That one went in!']
+    },
     hurt_bad: {
-      any: ['I\'m hurt, Zero. It\'s bad.', 'Bleeding. A lot.', 'Can\'t take another one of those.'],
-      cautious: ['This is what I was afraid of.'],
-      reckless: ['Bit of a scratch. A big scratch.']
+      any: ['I\'m hurt, Zero. It\'s bad.', 'Bleeding. A lot.', 'Can\'t take another one of those.', 'There\'s so much blood.',
+            'I can\'t stop the bleeding!', 'I don\'t think I can take much more of this.', 'Please. Somebody. I\'m hurt bad.'],
+      cautious: ['This is what I was afraid of. This is exactly it.'],
+      reckless: ['Bit of a scratch. A big scratch.', 'I\'m fine. I\'m fine. I\'m not fine.']
     },
     kill: {
-      any: ['Down.', 'One less.', 'That\'s one.'],
-      reckless: ['Next!'],
+      any: ['Got one. That one\'s down.', 'One less of them.', 'That\'s one of them down.'],
+      reckless: ['Next one!'],
       cautious: ['Got them. I\'m sorry.'],
       greedy: ['Let\'s see what they were carrying.']
     },
-    no_ammo: { any: ['Empty. I\'m empty.', 'Out of rounds.', 'That was my last round.'] },
+    no_ammo: {
+      any: ['Empty. I\'m empty!', 'I\'m out of rounds. Nothing left to shoot with.', 'That was my last round.', 'Click. Nothing. I\'m out!',
+            'Why don\'t I have any rounds? Who packed this?', 'Not one round left. Not one!'],
+      cautious: ['No rounds left. I\'ve got nothing left.']
+    },
     low_ammo: { any: ['Getting low on rounds.', 'A handful of rounds left.'] },
-    heal: { any: ['Patching up.', 'Using a medkit.', 'That\'s the worst of it stopped.'] },
+    no_meds: {
+      any: ['No medkits. Why are there never any medkits?', 'I\'m bleeding and there\'s nothing to patch it with.', 'Not a single bandage. Not one.'],
+      cautious: ['I packed for this. I\'m sure I packed for this.'],
+      reckless: ['No meds. Fine. Who needs blood anyway.']
+    },
+    no_food: {
+      any: ['Nothing to eat. Not a crumb in the whole stash.', 'Why is there never any food? I\'m starving here.', 'Empty tins. Every one of them, empty.'],
+      greedy: ['Who ate all the food? Somebody ate all the food.']
+    },
+    heal: { any: ['Patching myself up.', 'Using a medkit.', 'That\'s the worst of it stopped.'] },
     heal_mould: { any: ['Medkit on the mould. It\'s spreading.', 'Burning it back with the medkit.', 'It\'s in the cuts. Cleaning it out.'] },
     tide_touch: {
       any: ['It\'s on me! It burns!', 'It touched me. Zero, it\'s on my skin.', 'I\'m in it. Keep moving, keep moving.'],
@@ -200,7 +248,7 @@ var RZ = RZ || {};
       cautious: ['No. No, no. It\'s on me.']
     },
     mould_cured: { any: ['The ring\'s burned it out. I can breathe.', 'Clean. The shelter took it.', 'It\'s gone. I can feel my hands again.'] },
-    eat: { any: ['Eating while I walk.', 'Food. Not good food.', 'Cold tin, eaten standing up.'] },
+    eat: { any: ['Eating while I walk.', 'Eating. It\'s not good food, but it\'s food.', 'Cold tin, eaten standing up.'] },
     hungry: { any: ['Getting hungry.', 'Should have brought more to eat.'], reckless: ['Food is for people who plan.'] },
     found: {
       any: ['Found {what}.', 'Picked up {what}.'],
@@ -211,12 +259,18 @@ var RZ = RZ || {};
       any: ['A {what}. Not for me, but someone back at the safe house will want it.', 'Taking the {what} along. It can wait in a stash.'],
       greedy: ['A {what}! Nobody leaves a {what} lying about.']
     },
-    spare_left: { any: ['Leaving the {what} here. Someone will be glad of it.', 'One {what}, for the stash.'] },
+    spare_left: { any: ['Leaving the {what} here. Someone will be glad of it.', 'Leaving one {what} in the stash.'] },
     found_rifle: { any: ['A rifle! Someone\'s day went badly.', 'Now that\'s a proper gun.'] },
     found_shotgun: {
       any: ['A shotgun. Nobody gets close now.', 'Shotgun. Heavy, but I\'ll take it.'],
       reckless: ['Oh, I\'m going to enjoy this.'],
       cautious: ['Hope I never have to let anyone get that close.']
+    },
+    found_gun_dry: {
+      any: ['A {what}! And not one round to put in it.', 'Found a {what}. Brilliant. Now all I need is something to shoot with it.',
+            'A {what}, and an empty pack. Typical.'],
+      greedy: ['A {what}! Worth a fortune, and I can\'t even fire it.'],
+      reckless: ['A {what} and no rounds. You\'re joking.']
     },
     found_mp5: {
       any: ['A submachine gun. It\'ll eat rounds, though.', 'MP5. Still oiled. Somebody cared about this.'],
@@ -228,7 +282,7 @@ var RZ = RZ || {};
       cautious: ['Found {what}. Into the bottom of the pack, well away from the food.']
     },
     grenade: {
-      any: ['Grenade!', 'Get down! Not you, Zero.', 'Throwing!'],
+      any: ['Grenade! Get down!', 'Get down! Not you, Zero.', 'Grenade out! Throwing!'],
       reckless: ['Catch!'],
       cautious: ['Heads down, heads down.']
     },
@@ -239,20 +293,20 @@ var RZ = RZ || {};
     },
 
     tell: {
-      any: ['There\'s a shimmer ahead.', 'Pocket. Marking it.', 'See that? The air\'s wrong there.'],
+      any: ['There\'s a shimmer ahead.', 'A pocket in the air. Marking it on the map.', 'See that? The air\'s wrong there.'],
       cautious: ['A tell. Good thing I was looking.'],
       reckless: ['Bit of shimmer. Going around.']
     },
     struck: { any: ['What the...', 'Pocket! I walked into a...', 'It\'s in my lungs.'] },
 
     tide_seen: {
-      any: ['I can see it. Violet on the skyline.', 'There it is.', 'Tide. It\'s started.'],
+      any: ['I can see it. Violet on the skyline.', 'There it is. The tide\'s coming in.', 'The tide\'s started. I can see it from here.'],
       cautious: ['Tide on the horizon. Moving now.'],
       reckless: ['There\'s the tide. Plenty of time.'],
       greedy: ['Tide. A bit longer and I\'d have got the lot.']
     },
     tide_close: {
-      any: ['It\'s right behind me!', 'Running. Running.', 'It\'s closing, Zero.', 'I can hear it.'],
+      any: ['It\'s right behind me!', 'I\'m running. I\'m running as fast as I can.', 'It\'s closing, Zero.', 'I can hear the tide behind me.'],
       reckless: ['Bit quicker than I thought.']
     },
     turn_back: {
@@ -280,7 +334,7 @@ var RZ = RZ || {};
     triumph: {
       any: ['It\'s done. {site} is in the book.', 'Tell them, Zero. Tell all of them. {site}.', 'For everyone who didn\'t get this far.',
             'Cross {site} off, Zero. Use the good pen.', '{site}. Done. I want that in my handwriting.', 'That one\'s for {last}.'],
-      reckless: ['Told you.'],
+      reckless: ['Told you I\'d do it.'],
       cautious: ['Done. I\'d like to sit down now.']
     },
 
@@ -315,6 +369,15 @@ var RZ = RZ || {};
       cautious: ['It\'s {name}. It\'s walking. Please tell me you see this.'],
       reckless: ['{name}, you ugly thing. Come here.'],
       greedy: ['That\'s {name}. And that\'s all of {name}\'s gear.']
+    },
+    // An old self close by, coming after the ranger.
+    old_chase: {
+      any: ['It\'s {name}. {name} is chasing me. This is horrible.', '{name}, stop! It\'s me! Don\'t you know me?',
+            'I can hear {name} behind me. Same footsteps. Same everything.', 'Not {name}. Please, not {name}.',
+            'It\'s wearing {name}\'s face. It\'s coming for me.'],
+      cautious: ['I can\'t do this. I can\'t shoot {name}.'],
+      reckless: ['Come on then, {name}. One more round, for old times.'],
+      greedy: ['{name}, you can keep the gear. Just stop following me!']
     },
     old_kill: {
       any: ['Rest now, {name}.', 'It\'s over, {name}.', '{name} is down. Properly this time.'],
@@ -354,7 +417,7 @@ var RZ = RZ || {};
     pushon_nothing: { any: ['Push on to what, Zero? I\'m not headed anywhere.'] },
     turnback_inside: { any: ['I\'m already in shelter, Zero.', 'I\'m not going anywhere yet.'] },
     ack_warn: {
-      any: ['Copy. Keeping clear of it.', 'Marked. I\'ll go round.', 'What did you see?'],
+      any: ['Copy. Keeping clear of it.', 'Marked. I\'ll go round.', 'Copy. What did you see out there?'],
       cautious: ['Thank you. Going well around it.']
     },
     no_warn: {
@@ -436,16 +499,19 @@ var RZ = RZ || {};
     return RZ.sentences(fill(text, vars));
   }
 
-  RZ.addTalk = function (sim, kind, text, who) {
+  // `from` is the speaker's id when it isn't the ranger (an old self), so the view can put the words
+  // over the right figure.
+  RZ.addTalk = function (sim, kind, text, who, from) {
     var line = { tick: sim.tick, kind: kind, text: text, who: who, seq: ++sim.talkSeq };
+    if (from !== undefined) line.from = from;
     sim.talk.push(line);
     if (sim.talk.length > sim.cfg.voice.lines) sim.talk.shift();
-    RZ.emit(sim, 'say', { kind: kind, text: text, who: who });
+    RZ.emit(sim, 'say', { kind: kind, text: text, who: who, from: from });
   };
 
   // Urgent lines don't wait for a gap in the talk. Everything else waits its turn, so rangers don't babble.
   var URGENT = {
-    contact: 1, grenade: 1, hurt_bad: 1, tide_seen: 1, tide_close: 1, tide_touch: 1, heal_mould: 1, turn_back: 1, push_on: 1, reached: 1, triumph: 1,
+    contact: 1, pinned: 1, old_chase: 1, found_gun_dry: 1, focus: 1, focus_switch: 1, grenade: 1, hurt_bad: 1, tide_seen: 1, tide_close: 1, tide_touch: 1, heal_mould: 1, turn_back: 1, push_on: 1, reached: 1, triumph: 1,
     old_seen: 1, old_kill: 1, struck: 1, right: 1, right_ignored: 1, wrong: 1, wrong_turnback: 1, safe_close: 1,
     ack_turnback: 1, no_turnback: 1, ack_pushon: 1, no_pushon: 1, pushon_nothing: 1, turnback_inside: 1,
     ack_warn: 1, no_warn: 1, ack_send: 1, no_send: 1, no_time: 1, ack_crate: 1, crate_later: 1, crate_stash: 1,
@@ -459,7 +525,7 @@ var RZ = RZ || {};
     ack_turnback: 1, no_turnback: 1, ack_pushon: 1, no_pushon: 1, pushon_nothing: 1, turnback_inside: 1,
     ack_warn: 1, no_warn: 1, ack_send: 1, no_send: 1, no_time: 1, ack_crate: 1, crate_later: 1, crate_stash: 1,
     crate_got: 1, right: 1, right_ignored: 1, wrong: 1, wrong_turnback: 1, board_new: 1, hold_land: 1, release_land: 1,
-    first: 1, first_line: 1, meet_trust: 1, meet_doubt: 1, new_land: 1, land_done: 1, reached: 1, triumph: 1,
+    first: 1, first_line: 1, focus: 1, focus_switch: 1, meet_trust: 1, meet_doubt: 1, new_land: 1, land_done: 1, reached: 1, triumph: 1,
     cleared: 1, not_cleared: 1, relic_got: 1, relic_missing: 1, old_seen: 1
   };
 

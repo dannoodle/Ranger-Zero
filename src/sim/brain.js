@@ -215,12 +215,13 @@ var RZ = RZ || {};
     r.wasInfected = r.infection > 0;
     if (r.energy < c.eatBelow) {
       if (act.eat()) act.say('eat');
-      else if (place) act.eatFromStash();
-      else if (r.energy < c.eatBelow * 0.6) act.say('hungry');
+      else if (place) {
+        if (!act.eatFromStash()) act.say('no_food');
+      } else if (r.energy < c.eatBelow * 0.6) act.say('hungry');
     }
     if (r.hp < c.healBelow) {
       if (act.heal()) act.say('heal');
-      else if (place) act.healFromStash();
+      else if (!place || !act.healFromStash()) act.say('no_meds');
     }
     // Rounds only come up when they've just been firing them.
     if (r.weapon && !place && r.lastShot && r.clock.tick - r.lastShot.tick < 40) {
@@ -503,6 +504,12 @@ var RZ = RZ || {};
       }
       return false;
     }
+    for (var o = 0; o < enemies.length; o++) {
+      if (enemies[o].old && enemies[o].distance <= r.cfg.voice.chaseRange) {
+        act.say('old_chase', { name: enemies[o].first });
+        break;
+      }
+    }
     if (r.mode === 'shelter' || r.mode === 'climb' || (r.plan && r.plan.dash)) {
       shootOnTheRun(r, enemies, act); // the tide or the gauntlet comes first
       return false;
@@ -530,6 +537,7 @@ var RZ = RZ || {};
       return false;
     }
     if (r.mode !== 'fight') act.say('contact');
+    else if (enemies.length > 1 || r.hp < r.cfg.ranger.hpMax * 0.5) act.say('pinned');
     r.mode = 'fight';
     r.path = null;
     if (!tryGrenade(r, enemies, act, false)) act.shoot(target.id);
@@ -655,6 +663,9 @@ var RZ = RZ || {};
     return out * 2 + shelter.seconds * (1 + p.routeSlack) + p.buffer * r.temper.grabTime <= left;
   }
 
+  // How a ranger names a gun out loud.
+  var GUN_WORDS = { pistol: 'pistol', rifle: 'rifle', shotgun: 'shotgun', mp5: 'submachine gun' };
+
   function handleItems(r, percept, act, clock, book) {
     var p = r.cfg.planner;
     if (r.grab) {
@@ -669,7 +680,9 @@ var RZ = RZ || {};
         } else {
           var taken = act.pickUp(keepRounds(r));
           if (taken.length) {
-            if (taken[0] === 'rifle') act.say('found_rifle');
+            var gunFound = GUN_WORDS[taken[0]] || GUN_WORDS[taken[0].replace(/^a spare /, '')];
+            if (gunFound && r.pack.ammo === 0) act.say('found_gun_dry', { what: gunFound });
+            else if (taken[0] === 'rifle') act.say('found_rifle');
             else if (taken[0] === 'shotgun') act.say('found_shotgun');
             else if (taken[0] === 'mp5') act.say('found_mp5');
             else if (/^a spare /.test(taken[0])) act.say('found_spare', { what: taken[0].slice(8) });

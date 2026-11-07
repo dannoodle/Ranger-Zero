@@ -57,7 +57,7 @@ var RZ = RZ || {};
     var words = own && old.lastMutter !== own && sim.voiceRng.chance(0.4) ? own : sim.voiceRng.pick(MUTTERS);
     if (words === old.lastMutter) return;
     old.lastMutter = words;
-    RZ.addTalk(sim, 'old', words, old.first);
+    RZ.addTalk(sim, 'old', words, old.first, old.id);
   }
 
   function stepOne(sim, old) {

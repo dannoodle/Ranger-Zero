@@ -12,7 +12,7 @@ An autonomous top-down survival sim. See [docs/concept.md](docs/concept.md) for 
 - **Moving a card:** cut the line and paste it into the new column. When it reaches Done, tick the box and add the date: `- [x] R-001 Short description (2026-11-06)`.
 - **Done** stays on this board until it gets long, then older cards move to `KANBAN-archive.md`.
 
-**Next ID:** R-096
+**Next ID:** R-100
 
 ---
 
@@ -102,6 +102,14 @@ Phase C: supply and looting strategy.
 
 ## Done
 
+- [x] R-099 Old selves' words appear over the old self, not the living ranger (2026-11-07)
+  The view kept one speech bubble and always drew it over the ranger, so a mutter also wiped whatever the ranger was saying. Talk now carries the old self's id, and old selves get their own purple ghost bubble over their figure, hidden in the ranger view when they're out of sight.
+- [x] R-098 Rangers say the main plan out loud, and complain when things go wrong (2026-11-07)
+  When the planner picks an objective it's said as well as written: "New plan. We're going to survey Old Mast.", or "Forget Grey Lamp for now. Better odds if we clear Brack." when it switches. Each new ranger says it once on taking it on. Frustration: a gun found with no rounds, no medkit when hurt, no food in the stash, bare stores at home, more lines for running dry, and an old self within 8 cells ("It's wearing Pilar's face. It's coming for me."). 8 seeds of 30 minutes: 70 plan lines, 10 old-self chases, 7 no-medkit lines.
+- [x] R-097 Fight talk and lines that make sense heard: more desperate lines under attack, a pinned-down line, fuller versions of clipped barks, and no "Zero" in the spoken voice (2026-11-07)
+  New `pinned` line, said mid-fight when outnumbered or below half health (cooldown 22s), and more lines for contact, hurt, hurt_bad, flee, dash and no_ammo. Barks like "Hit!", "Down.", "There it is." and "Running. Running." now say what happened. The synth reads Zero as a number, so the spoken line drops it ("They're shooting at me, Zero." is heard as "They're shooting at me."); the written radio keeps it. "Is this Zero?" became "Is anyone on this channel?" since it can't be dropped. 6 seeds of 25 minutes: 113 fight lines, none said more than 9 times.
+- [x] R-096 Ranger voices: every line a ranger says is read out by the browser's speech synth, keyed up like a radio (2026-11-07)
+  On by default, V turns it off and the choice is remembered. Each ranger keeps one voice for life, with pitch and rate from their temper. A question ends with "Over." A click keys the radio up, static runs under the voice, and a roger bleep closes each transmission. Not old selves, and not Zero. Lines are dropped above 8x or when they've waited too long. View only: the sim doesn't change.
 - [x] R-095 Better dialogue: rangers say less, never repeat a line soon after anyone said it, and keep quiet rather than fall back on the most common lines (2026-11-07)
   A line rests 900s after anyone says it. Filler and fight barks stay silent when every version is resting; answers to Zero and big moments fall back on the line said longest ago. Per-kind cooldowns for barks (kill 45s, contact 40s, eat 300s, a tide muse once a tide), thoughts every 70s waiting and 55s walking instead of 24s and 22s, the blandest filler cut and some sharper lines added. Old selves only mutter within 16 cells of the ranger. 6 seeds of 12 tides: 5.4 lines a minute to 3.5, the most repeated line 36 times to 14. Covers R-078: a camp seen from two sides is written up once.
 - [x] R-094 Say shelter, outpost or safe house instead of "gold" in everything a player reads: talk, journal, plan, panel and hints (2026-11-07)

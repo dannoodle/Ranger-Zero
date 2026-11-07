@@ -366,7 +366,7 @@ var CFG = {
     gap: 8,                  // minimum between lines that can wait
     cooldown: 18,            // before the same kind of line again
     // Kinds that would otherwise come round in every fight or every trip.
-    cooldowns: { kill: 45, hurt: 30, contact: 40, flee: 40, safe: 150, eat: 300, hungry: 180, heal: 60, found: 25,
+    cooldowns: { kill: 45, hurt: 30, contact: 40, pinned: 22, flee: 40, old_chase: 35, no_meds: 150, no_food: 240, stores_empty: 400, safe: 150, eat: 300, hungry: 180, heal: 60, found: 25,
                  tell: 40, walk_new: 240, muse_tide: 300, low_ammo: 90, no_ammo: 60 },
     // Seconds before anyone says the same words again. With nothing fresh to say, rangers keep quiet,
     // except when they owe Zero an answer or something big has happened.
@@ -374,7 +374,8 @@ var CFG = {
     museEvery: 70,           // a thought while waiting
     walkEvery: 55,           // a thought on the road
     lines: 300,
-    graveRange: 7
+    graveRange: 7,
+    chaseRange: 8            // an old self this close is coming after the ranger
   },
 
   oldself: {
@@ -563,6 +564,25 @@ var CFG = {
       crisis: 0.6,           // close to dying
       talk: 1,               // for a few seconds after Zero speaks
       talkSeconds: 4
+    },
+    // Rangers' lines read out by the browser's speech synth, like a radio. Old selves and Zero aren't voiced.
+    voices: {
+      on: true,              // on unless the viewer has turned them off (key V), which is remembered
+      maxSpeed: 8,           // faster than this, lines are only shown
+      queue: 1,              // lines that may wait while someone's talking; older ones are dropped
+      staleSeconds: 5,       // a line that has waited this long is dropped
+      keySeconds: 0.14,      // the click of the key before the voice starts
+      gapSeconds: 0.35,      // between one transmission and the next
+      volume: 1,
+      bed: 0.03,             // static under the voice
+      jitter: 0.14,          // how far one ranger's pitch strays from their temper's
+      better: 'natural|neural|online|premium|enhanced',  // voice names that sound less robotic
+      enoughGood: 3,         // use only the better voices if there are at least this many
+      tempers: {
+        cautious: { pitch: 0.92, rate: 0.92 },
+        greedy: { pitch: 1, rate: 1.02 },
+        reckless: { pitch: 1.08, rate: 1.12 }
+      }
     },
     cardSeconds: 12,         // a card closes by itself after this long
     calmStep: 10             // the tide length slider moves in steps of this many seconds

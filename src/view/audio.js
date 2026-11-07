@@ -192,7 +192,36 @@ var RZ = RZ || {};
       burst(this, { filter: 'bandpass', from: 500, to: 1800, length: 1, volume: 0.08, q: 2 });
     } else if (name === 'thud') {
       tone(this, { from: 100, to: 40, length: 0.25, volume: 0.4 });
+    } else if (name === 'key') {
+      // The ranger keys the radio: a squelch of static.
+      burst(this, { filter: 'bandpass', from: 2800, to: 1500, length: 0.1, volume: 0.12, q: 1.2 });
+    } else if (name === 'roger') {
+      // The roger bleep that closes a transmission, then the squelch tail.
+      tone(this, { from: 1500, length: 0.13, volume: 0.045, type: 'square', attack: 0.004 });
+      burst(this, { filter: 'bandpass', from: 2400, to: 1200, length: 0.12, volume: 0.08, q: 1.2, delay: 0.14 });
     }
+  };
+
+  // Static under a ranger's voice while they're transmitting.
+  Audio.prototype.radioBed = function (on) {
+    if (!this.ctx) return;
+    var ctx = this.ctx;
+    if (!this.bedGain) {
+      var source = ctx.createBufferSource();
+      source.buffer = this.white;
+      source.loop = true;
+      var filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 1800;
+      filter.Q.value = 0.7;
+      this.bedGain = ctx.createGain();
+      this.bedGain.gain.value = 0;
+      source.connect(filter);
+      filter.connect(this.bedGain);
+      this.bedGain.connect(this.master);
+      source.start();
+    }
+    this.bedGain.gain.setTargetAtTime(on ? CFG.look.voices.bed : 0, ctx.currentTime, 0.03);
   };
 
   // Called every frame with how things stand.

@@ -186,22 +186,45 @@ var RZ = RZ || {};
   };
 
   // The latest thing said stays up for a moment, in real time, whatever the sim speed.
+  // An old self's words get their own bubble, over that old self, so they never cover the ranger's.
   P.showSpeech = function (line) {
-    this.speech = { text: line.text, kind: line.kind, age: 0 };
+    if (line.kind === 'old') this.oldSpeech = { text: line.text, from: line.from, age: 0 };
+    else this.speech = { text: line.text, kind: line.kind, age: 0 };
   };
 
-  P.drawSpeech = function (dt) {
-    var speech = this.speech;
-    if (!speech) return;
+  // Seconds a bubble stays up, and how faded it is now. Null once it has had its time.
+  P.speechFade = function (speech, dt) {
     speech.age += dt || 0;
     var look = this.look;
     var life = look.speechSeconds + speech.text.length * look.speechPerLetter;
-    if (speech.age > life) {
+    if (speech.age > life) return null;
+    return Math.min(1, (life - speech.age) * 3);
+  };
+
+  P.drawOldSpeech = function (dt) {
+    var speech = this.oldSpeech;
+    if (!speech) return;
+    var alpha = this.speechFade(speech, dt);
+    var old = this.sim.olds.filter(function (o) { return o.id === speech.from; })[0];
+    if (alpha === null || !old) {
+      this.oldSpeech = null;
+      return;
+    }
+    // Drawn only where the figure is: in the ranger's view, an old self out of sight stays hidden.
+    if (this.mode === 'ranger' && !this.visibleNow(old.x, old.y)) return;
+    this.bubble(speech.text, this.toX(old.x), this.toY(old.y) - this.figureSize(), alpha, true);
+  };
+
+  P.drawSpeech = function (dt) {
+    this.drawOldSpeech(dt);
+    var speech = this.speech;
+    if (!speech) return;
+    var alpha = this.speechFade(speech, dt);
+    if (alpha === null) {
       this.speech = null;
       return;
     }
     var r = this.sim.ranger;
-    var alpha = Math.min(1, (life - speech.age) * 3);
     if (r && r.alive) {
       var spot = this.rangerSpot();
       this.bubble(speech.text, this.toX(spot.x), this.toY(spot.y) - this.figureSize(), alpha, false);

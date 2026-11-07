@@ -229,10 +229,12 @@ var RZ = RZ || {};
     var runner = options[1] && options[1].staging ? options[1] : null;
     weigh('Next on the board', best.objective.title + ': ' + best.note +
       (runner ? ' (over ' + runner.objective.title + ', ' + Math.round(best.score) + ' to ' + Math.round(runner.score) + ')' : ''), true);
+    var switched = null;
     if (best.objective !== book.mission) {
       var was = book.mission;
       book.mission = best.objective;
       if (was && !was.done && was.startTick !== undefined) {
+        switched = was;
         journalPlan(r, book, clock, { kind: 'plan' }, 'focus' + best.objective.id,
           'Leaving ' + was.title + ' for now. ' + best.objective.title + ' looks the better bet: ' + best.note + '.');
       } else {
@@ -240,9 +242,20 @@ var RZ = RZ || {};
           'Next on the board: ' + best.objective.title + '. ' + best.note.charAt(0).toUpperCase() + best.note.slice(1) + '.');
       }
     }
+    sayFocus(r, act, best.objective, switched);
     act.focus(best.objective.id);
     if (brief) brief.mission = { id: best.objective.id, name: best.objective.name, title: best.objective.title, type: best.objective.type };
     return best;
+  }
+
+  // The main job, out loud: once when it changes, and once for each ranger who takes it on.
+  function sayFocus(r, act, objective, was) {
+    var key = r.no + ':' + objective.id;
+    if (r.toldFocus === key) return;
+    r.toldFocus = key;
+    var task = objective.title.charAt(0).toLowerCase() + objective.title.slice(1);
+    if (was) act.say('focus_switch', { task: task, was: was.name });
+    else act.say('focus', { task: task });
   }
 
   function ledger(book, place) {
@@ -831,6 +844,7 @@ var RZ = RZ || {};
       if (!here.isHome) return fetchPlan(r, book, here, clock, act);
       var scavenge = scavengePlan(r, book, here, clock, left, act);
       if (scavenge) return scavenge;
+      act.say('stores_empty');
       return waitPlan(clock, 'stores');
     }
 
