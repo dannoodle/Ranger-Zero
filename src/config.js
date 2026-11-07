@@ -574,7 +574,24 @@ var CFG = {
       keySeconds: 0.14,      // the click of the key before the voice starts
       gapSeconds: 0.35,      // between one transmission and the next
       volume: 1,
-      bed: 0.03,             // static under the voice
+      // How well a transmission comes through, from 0 (clear) to 1 (barely there). Distance from home,
+      // the tide close by and low signal all make it worse.
+      reception: {
+        fixed: null,         // a number from 0 to 1 here forces it, to hear the extremes: ?look.voices.reception.fixed=0.9
+        far: 0.6,            // this share of the map's narrower side from home counts as as far as it gets
+        weights: { distance: 0.55, tide: 0.4, signal: 0.1 },
+        curve: 1.6,          // distance hurts little nearby and a lot at the edges
+        dead: 0.85,          // last words come through worst of all
+        bedClear: 0.02,      // static under the voice when it's clear...
+        bedPoor: 0.1,        // ...and at its worst
+        crackleClear: 0.5,   // crackles a second when clear...
+        crackle: 7,          // ...added at the worst
+        whine: 0.014,        // a wandering heterodyne whistle, at the worst
+        chatter: 0.06,       // another channel bleeding through, at the worst...
+        chatterFrom: 0.4,    // ...on some transmissions worse than this
+        fade: 0.45,          // how much fainter a line can come through at the worst
+        warble: 0.1          // how far off pitch a line can drift at the worst
+      },
       jitter: 0.14,          // how far one ranger's pitch strays from their temper's
       better: 'natural|neural|online|premium|enhanced',  // voice names that sound less robotic
       enoughGood: 3,         // use only the better voices if there are at least this many

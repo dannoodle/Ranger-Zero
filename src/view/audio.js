@@ -202,32 +202,118 @@ var RZ = RZ || {};
     }
   };
 
-  // Static under a ranger's voice while they're transmitting.
-  Audio.prototype.radioBed = function (on) {
-    if (!this.ctx) return;
-    var ctx = this.ctx;
-    if (!this.bedGain) {
-      var source = ctx.createBufferSource();
-      source.buffer = this.white;
-      source.loop = true;
-      var filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.value = 1800;
-      filter.Q.value = 0.7;
-      this.bedGain = ctx.createGain();
-      this.bedGain.gain.value = 0;
-      source.connect(filter);
-      filter.connect(this.bedGain);
-      this.bedGain.connect(this.master);
-      source.start();
+  // The channel while a ranger is transmitting: static that drifts, crackle, a heterodyne whine and
+  // another channel bleeding through, all scaled by how poor reception is (0 clear, 1 barely there).
+  // It plays alongside the voice, because the browser's speech can't be routed through Web Audio.
+  function loopNoise(self, filterType, frequency, q) {
+    var ctx = self.ctx;
+    var source = ctx.createBufferSource();
+    source.buffer = self.white;
+    source.loop = true;
+    var filter = ctx.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.value = frequency;
+    filter.Q.value = q;
+    var gain = ctx.createGain();
+    gain.gain.value = 0;
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(self.master);
+    source.start(0, Math.random() * 0.9);
+    return { filter: filter, gain: gain };
+  }
+
+  function buildRadio(self) {
+    var ctx = self.ctx;
+    var hiss = loopNoise(self, 'bandpass', 1800, 0.7);
+    var murmur = loopNoise(self, 'bandpass', 700, 5);
+    var whineOsc = ctx.createOscillator();
+    whineOsc.type = 'sine';
+    whineOsc.frequency.value = 1200;
+    var whine = ctx.createGain();
+    whine.gain.value = 0;
+    whineOsc.connect(whine);
+    whine.connect(self.master);
+    whineOsc.start();
+    return {
+      hiss: hiss, murmur: murmur, whineOsc: whineOsc, whine: whine,
+      on: false, noise: 0, nextCrackle: 0, nextSyllable: 0, chatterAt: 0, chatterUntil: 0
+    };
+  }
+
+  // A few tiny pops close together: the sound of a weak signal breaking up.
+  function crackle(self, noise) {
+    var pops = 1 + Math.floor(Math.random() * (1 + noise * 3));
+    for (var i = 0; i < pops; i++) {
+      burst(self, {
+        filter: 'highpass', from: 3500 + Math.random() * 2500, to: 1800, q: 0.9,
+        length: 0.008 + Math.random() * 0.03, volume: (0.03 + Math.random() * 0.12) * (0.4 + noise), delay: Math.random() * 0.06
+      });
     }
-    this.bedGain.gain.setTargetAtTime(on ? CFG.look.voices.bed : 0, ctx.currentTime, 0.03);
+  }
+
+  Audio.prototype.radioOn = function (noise) {
+    if (!this.ctx) return;
+    if (!this.radio) this.radio = buildRadio(this);
+    var radio = this.radio;
+    var look = CFG.look.voices.reception;
+    var now = this.ctx.currentTime;
+    radio.on = true;
+    radio.noise = noise;
+    radio.nextCrackle = now + Math.random() * 0.3;
+    // Another channel bleeds in for a stretch of some poor transmissions.
+    var bleed = noise > look.chatterFrom && Math.random() < (noise - look.chatterFrom) * 2.5;
+    radio.chatterAt = bleed ? now + Math.random() * 1.2 : 0;
+    radio.chatterUntil = bleed ? radio.chatterAt + 0.6 + Math.random() * 2.2 : 0;
   };
+
+  Audio.prototype.radioOff = function () {
+    var radio = this.radio;
+    if (!radio) return;
+    var now = this.ctx.currentTime;
+    radio.on = false;
+    radio.hiss.gain.gain.setTargetAtTime(0, now, 0.03);
+    radio.murmur.gain.gain.setTargetAtTime(0, now, 0.03);
+    radio.whine.gain.setTargetAtTime(0, now, 0.03);
+  };
+
+  function radioFrame(self, now) {
+    var radio = self.radio;
+    if (!radio || !radio.on) return;
+    var look = CFG.look.voices.reception;
+    var n = radio.noise;
+    // Static that swells and fades as the signal drifts.
+    var level = look.bedClear + (look.bedPoor - look.bedClear) * n;
+    var flutter = 1 + (Math.random() * 2 - 1) * (0.2 + n * 0.7);
+    radio.hiss.gain.gain.setTargetAtTime(level * flutter, now, 0.05);
+    radio.hiss.filter.frequency.setTargetAtTime(1300 + Math.random() * 1500, now, 0.25);
+    // A whistle wandering in pitch, only really there when reception is poor.
+    radio.whine.gain.setTargetAtTime(look.whine * n * n, now, 0.2);
+    var pitch = Math.max(600, Math.min(2200, radio.whineOsc.frequency.value + (Math.random() * 2 - 1) * 70));
+    radio.whineOsc.frequency.setTargetAtTime(pitch, now, 0.15);
+    if (now >= radio.nextCrackle) {
+      var perSecond = look.crackleClear + look.crackle * n * n;
+      radio.nextCrackle = now - Math.log(1 - Math.random()) / perSecond;
+      crackle(self, n);
+    }
+    // The other channel: noise shaped into syllables, far too faint and muffled to follow.
+    if (now >= radio.chatterAt && now < radio.chatterUntil) {
+      if (now >= radio.nextSyllable) {
+        radio.nextSyllable = now + 0.07 + Math.random() * 0.17;
+        var voiced = Math.random() < 0.75;
+        radio.murmur.gain.gain.setTargetAtTime(voiced ? look.chatter * (0.4 + Math.random() * 0.6) : 0, now, 0.025);
+        radio.murmur.filter.frequency.setTargetAtTime(350 + Math.random() * 900, now, 0.04);
+      }
+    } else {
+      radio.murmur.gain.gain.setTargetAtTime(0, now, 0.05);
+    }
+  }
 
   // Called every frame with how things stand.
   Audio.prototype.update = function (state) {
     if (!this.ctx || this.ctx.state !== 'running') return;
     var now = this.ctx.currentTime;
+    radioFrame(this, now);
     this.tideGain.gain.setTargetAtTime(state.tide * 0.34, now, 0.6);
     this.tideFilter.frequency.setTargetAtTime(160 + state.tide * 760, now, 0.6);
     this.windGain.gain.setTargetAtTime(0.13 + (1 - state.tide) * 0.1, now, 1);

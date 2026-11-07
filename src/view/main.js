@@ -363,7 +363,7 @@
         var fresh = sim.ranger.alive || sim.tick - event.tick < 2;
         if (fresh) renderer.showSpeech(event);
         var speaker = event.who === sim.ranger.first ? sim.ranger : { no: 0, name: event.who, temperName: '' };
-        var voiced = fresh && voices.hear(event.text, speaker, running);
+        var voiced = fresh && voices.hear(event.text, speaker, running, radioNoise());
         if (calm && !voiced) audio.play('blip');
       } else if (event.kind === 'zero') {
         audio.play('zero');
@@ -423,6 +423,21 @@
         overlays.toast('Chapter ' + event.chapter, 'gold', 5);
       }
     }
+  }
+
+  // How badly a ranger's transmission comes through, 0 clear to 1 barely there: worse far from home,
+  // with the tide close, and with the signal run down. Last words come through worst of all.
+  function radioNoise() {
+    var look = CFG.look.voices.reception;
+    if (typeof look.fixed === 'number') return Math.max(0, Math.min(1, look.fixed));
+    var r = sim.ranger;
+    if (!r.alive) return look.dead;
+    var world = sim.world;
+    var far = Math.hypot(r.x - world.home.x, r.y - world.home.y) / (look.far * Math.min(world.w, world.h));
+    var weights = look.weights;
+    var noise = weights.distance * Math.pow(Math.min(1, far), look.curve) + weights.tide * soundState().tide +
+      weights.signal * (1 - sim.signal / CFG.radio.signalMax);
+    return Math.max(0, Math.min(1, noise));
   }
 
   function readEvents(running) {

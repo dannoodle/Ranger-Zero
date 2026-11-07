@@ -92,11 +92,12 @@ var RZ = RZ || {};
     return part;
   };
 
-  // A line has been said. Returns true if it will be read out, so the caller can skip the plain blip.
-  V.hear = function (text, who, running) {
+  // A line has been said. noise is how badly it comes through, 0 clear to 1 barely there.
+  // Returns true if it will be read out, so the caller can skip the plain blip.
+  V.hear = function (text, who, running, noise) {
     if (!this.on || !this.synth || this.audio.muted || !who) return false;
     if (running > this.look.maxSpeed) return false;
-    this.queue.push({ text: text, cast: this.castFor(who), at: performance.now() });
+    this.queue.push({ text: text, cast: this.castFor(who), noise: noise || 0, at: performance.now() });
     while (this.queue.length > this.look.queue) this.queue.shift();
     this.next();
     return true;
@@ -111,19 +112,21 @@ var RZ = RZ || {};
     if (!line) return;
     var self = this;
     var look = this.look;
+    var noise = line.noise;
     var utterance = new SpeechSynthesisUtterance(RZ.radioWords(line.text));
     if (line.cast.voice) {
       utterance.voice = line.cast.voice;
       utterance.lang = line.cast.voice.lang;
     }
-    utterance.pitch = line.cast.pitch;
+    // A poor signal comes through a little fainter, and a touch off pitch.
+    utterance.pitch = Math.max(0.5, Math.min(1.6, line.cast.pitch + (Math.random() * 2 - 1) * look.reception.warble * noise));
     utterance.rate = line.cast.rate;
-    utterance.volume = look.volume;
+    utterance.volume = look.volume * (1 - Math.random() * look.reception.fade * noise);
     var talk = { utterance: utterance, started: now, words: utterance.text, dead: false };
     this.talking = talk;
     utterance.onend = utterance.onerror = function () { self.finish(talk, true); };
     this.audio.play('key');
-    this.audio.radioBed(true);
+    this.audio.radioOn(noise);
     setTimeout(function () {
       if (!talk.dead) self.synth.speak(utterance);
     }, look.keySeconds * 1000);
@@ -134,7 +137,7 @@ var RZ = RZ || {};
     if (this.talking !== talk) return;
     talk.dead = true;
     this.talking = null;
-    this.audio.radioBed(false);
+    this.audio.radioOff();
     if (bleep) this.audio.play('roger');
     var self = this;
     setTimeout(function () { self.next(); }, this.look.gapSeconds * 1000);

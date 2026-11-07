@@ -12,7 +12,7 @@ An autonomous top-down survival sim. See [docs/concept.md](docs/concept.md) for 
 - **Moving a card:** cut the line and paste it into the new column. When it reaches Done, tick the box and add the date: `- [x] R-001 Short description (2026-11-06)`.
 - **Done** stays on this board until it gets long, then older cards move to `KANBAN-archive.md`.
 
-**Next ID:** R-100
+**Next ID:** R-101
 
 ---
 
@@ -102,6 +102,8 @@ Phase C: supply and looting strategy.
 
 ## Done
 
+- [x] R-100 Radio reception: transmissions come through clean near home and break up far out, in the tide and in last words (2026-11-07)
+  Reception runs from 0 (clear) to 1 (barely there): distance from home on a curve, the tide close by, low signal, and 0.85 for last words. Worse reception means drifting static, more crackle, a wandering heterodyne whistle, now and then another channel murmuring through, and the voice a little fainter and off pitch. Lines are always spoken whole: cutting the voice up between words was tried and taken out, as it sounded worse. 6 seeds of 25 minutes: 55% of lines clean or nearly, 45% rough, the worst kept for the tide at the edges and last words. `?look.voices.reception.fixed=0.9` forces a level to hear it.
 - [x] R-099 Old selves' words appear over the old self, not the living ranger (2026-11-07)
   The view kept one speech bubble and always drew it over the ranger, so a mutter also wiped whatever the ranger was saying. Talk now carries the old self's id, and old selves get their own purple ghost bubble over their figure, hidden in the ranger view when they're out of sight.
 - [x] R-098 Rangers say the main plan out loud, and complain when things go wrong (2026-11-07)
